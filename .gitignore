@@ -1,0 +1,4 @@
+.env
+logs/output/*
+!logs/output/.gitkeep
+__pycache__
