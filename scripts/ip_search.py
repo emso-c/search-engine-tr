@@ -10,8 +10,11 @@ import socket
 from src.temp import DBAdapter, IPService, IPTable
 from sqlalchemy.exc import SQLAlchemyError
 
+MAX_CONCURRENT_REQUESTS = 2048
+CLIENT_TIMEOUT = 10 # seconds
 
-MAX_CONCURRENT_REQUESTS = 1000
+active_requests = 0
+counter_lock = asyncio.Lock()
 
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 db_adapter = DBAdapter("sqlite:///db/ip.db")
@@ -20,7 +23,14 @@ print("initial ips:", len(ip_service.get_ips()))
 
 async def ip_scan_task(ip, ports, semaphore=semaphore):
     async with semaphore, aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=CLIENT_TIMEOUT)) as session:
+        global active_requests
+        
         for port in ports:
+            async with counter_lock:
+                active_requests += 1
+            await asyncio.sleep(0.01)  # Add a small delay to offset the time it takes to acquire the lock
+            # print(f"Active requests: {active_requests}")
+            
             try:
                 is_https = port == 443
                 ip_template = "http{}://{}:{}"
@@ -59,6 +69,9 @@ async def ip_scan_task(ip, ports, semaphore=semaphore):
             except Exception as e:
                 print(e.__class__.__name__, e)
                 exit()
+            finally:
+                async with counter_lock:
+                    active_requests -= 1
 
 async def ip_range_scan_task(ip_ranges = ((0, 16), (0, 16), (0, 16), (0, 16)), ports = (80, 443)):
     tasks = []
