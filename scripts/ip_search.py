@@ -42,11 +42,21 @@ async def scan_ip(ip, ports):
                         accepted_addr = ip_template.format("s" if is_https else "", domain_name if domain_name else ip, port)
                         ip_obj = ip_service.upsert_ip(ip, domain_name, port, response.status)
                         print(f"Valid address found: {accepted_addr} ({ip_obj.ip}) - {response.status}")
+            
+            # TODO handle exceptions
             except SQLAlchemyError as e:
-                print(e.__class__.__name__, e)
-            except Exception as e:
-                # bad practice
                 pass
+            except aiohttp.ClientConnectorError as e:
+                pass
+            except aiohttp.ClientOSError as e:
+                pass
+            except asyncio.TimeoutError as e:
+                pass
+            except aiohttp.ServerDisconnectedError as e:
+                pass
+            except Exception as e:
+                print(e.__class__.__name__, e)
+                exit()
 
 async def ip_range_scan_task(ip_ranges = ((0, 16), (0, 16), (0, 16), (0, 16)), ports = (80, 443)):
     tasks = []
