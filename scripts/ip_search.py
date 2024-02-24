@@ -54,6 +54,8 @@ async def ip_scan_task(ip, ports, semaphore=semaphore):
                 pass
             except aiohttp.ServerDisconnectedError as e:
                 pass
+            except aiohttp.ClientResponseError as e:
+                pass
             except Exception as e:
                 print(e.__class__.__name__, e)
                 exit()
