@@ -17,7 +17,7 @@ active_requests = 0
 counter_lock = asyncio.Lock()
 
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-db_adapter = DBAdapter("sqlite:///db/ip.db")
+db_adapter = DBAdapter("sqlite:///data/ip.db")
 ip_service = IPService(db_adapter)
 print("initial ips:", len(ip_service.get_ips()))
 
@@ -97,6 +97,6 @@ if __name__ == "__main__":
                     chunks.append(((a, a+chunk_size), (b, b+chunk_size), (c, c+chunk_size), (d, d+chunk_size)))
 
     for chunk in chunks:
-        print(f"Scanning chunk: {chunk}")
-        asyncio.run(ip_range_scan_task(chunk))
+        asyncio.run(ip_range_scan_task(chunk, ports=(80, 443)))
         print("IP scan complete. Total valid IPs:", len(ip_service.get_valid_ips()))
+        break
