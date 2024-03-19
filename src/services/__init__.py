@@ -1,3 +1,2 @@
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from .BaseService import BaseService
+from .IPService import IPService

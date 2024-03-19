@@ -1,5 +1,5 @@
-from . import Base
 from src.database.adapter import DBAdapter
+from src.models import Base
 
 class BaseService:
     def __init__(self, db_adapter: DBAdapter):

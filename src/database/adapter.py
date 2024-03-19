@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy.orm import sessionmaker, Session
+from src.models import Base
 
-Base = declarative_base()
 
 class DBAdapter:
     def __init__(self, db_url: str):

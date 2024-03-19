@@ -1,0 +1,19 @@
+{
+    "crawler": {
+        "max_workers": 1024,
+        "chunk_size": 8,
+        "req_timeout": 10,
+        "ports": [80, 443],
+        "allowed_protocols": [
+            "http",
+            "https"
+        ],
+        "fail_reason_weights": {
+            "INVALID_STATUS_CODE": 0.7,
+            "NOT_AVAILABLE": 1,
+            "NOT_TURKISH": 2
+        },
+        "user_agent": "KTUBot/1.0 (+http://www.ktu.edu.tr)",
+        "retry_after_minutes": 10
+    }
+}

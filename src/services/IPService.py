@@ -1,16 +1,21 @@
 from typing import List, Optional
 from datetime import datetime
-from src.models import IPTable
 
+from src.models import IPTable
 from src.services import BaseService
 
-from . import Base
 
 class IPService(BaseService):
-    def add_ip(self, ip: str, domain: str, port: int, status: int) -> IPTable:
+    def add_ip(self, ip: str, domain: str, port: int, status: int,
+                keywords: str = None, title: str = None,
+                description: str = None, body: str = None) -> IPTable:
         """Add a new IP to the database."""
         with self.db_adapter.get_session() as session:
-            ip_obj = IPTable(ip=ip, domain=domain, port=port, status=status)
+            ip_obj = IPTable(
+                ip=ip, domain=domain, port=port, status=status,
+                keywords=keywords, title=title, description=description,
+                body=body
+            )
             session.add(ip_obj)
             session.commit()
             return ip_obj
@@ -25,7 +30,9 @@ class IPService(BaseService):
         with self.db_adapter.get_session() as session:
             return session.query(IPTable).filter_by(ip=ip).first()
 
-    def update_ip(self, ip: str, domain: str, port: int, status: int) -> IPTable:
+    def update_ip(self, ip: str, domain: str, port: int, status: int,
+                  keywords: str = None, title: str = None,
+                  description: str = None, body: str = None) -> IPTable:
         """Update an existing IP in the database."""
         with self.db_adapter.get_session() as session:
             ip_obj = session.query(IPTable).filter_by(ip=ip).first()
@@ -33,6 +40,10 @@ class IPService(BaseService):
             ip_obj.port = port
             ip_obj.status = status
             ip_obj.updated_at = datetime.now()
+            ip_obj.keywords = keywords or ip_obj.keywords
+            ip_obj.title = title or ip_obj.title
+            ip_obj.description = description or ip_obj.description
+            ip_obj.body = body or ip_obj.body
             session.commit()
             return ip_obj
 
@@ -56,14 +67,16 @@ class IPService(BaseService):
         with self.db_adapter.get_session() as session:
             return session.query(IPTable).filter_by(status=200).all()
 
-    def upsert_ip(self, ip: str, domain: str, port: int, status: int) -> IPTable:
+    def upsert_ip(self, ip: str, domain: str, port: int, status: int,
+                  keywords: str = None, title: str = None,
+                  description: str = None, body: str = None) -> IPTable:
         """Add a new IP or update an existing one in the database."""
         session = self.db_adapter.get_session()
         ip_obj = session.query(IPTable).filter_by(ip=ip).first()
         if ip_obj:
-            ip_obj = self.update_ip(ip, domain, port, status)
+            ip_obj = self.update_ip(ip, domain, port, status, keywords, title, description, body)
         else:
-            ip_obj = self.add_ip(ip, domain, port, status)
+            ip_obj = self.add_ip(ip, domain, port, status, keywords, title, description, body)
         session.commit()
         return ip_obj
 
