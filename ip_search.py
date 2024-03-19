@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 import aiohttp
-from src.utils import ResponseConverter
+from src.utils import ResponseConverter, ping
 from lxml.etree import ParserError
 from src.database.adapter import DBAdapter
 from src.services.IPService import IPService
@@ -38,6 +38,10 @@ async def ip_scan_task(ip, ports, semaphore):
                 ip_template = "http{}://{}:{}"
                 full_url = ip_template.format("s" if is_https else "", ip, port)
                 
+                # if ping(full_url) is False:
+                #     print(f"❌ - {full_url} - [PING FAILED]")
+                #     raise InvalidResponse("Ping failed")
+
                 # check if ip is already in the database
                 if ip_service.get_ip(ip):
                     should_be_rechecked = True  # TODO implement recheck function, ex: if last_checked < 1 week ago
