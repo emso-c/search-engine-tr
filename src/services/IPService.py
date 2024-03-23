@@ -6,6 +6,10 @@ from src.services import BaseService
 
 
 class IPService(BaseService):
+    def __init__(self, db_adapter):
+        super().__init__(db_adapter)
+        self._queue = []
+    
     def add_ip(self, ip: str, domain: str, port: int, status: int,
                 keywords: str = None, title: str = None,
                 description: str = None, body: str = None) -> IPTable:
@@ -79,6 +83,20 @@ class IPService(BaseService):
             ip_obj = self.add_ip(ip, domain, port, status, keywords, title, description, body)
         session.commit()
         return ip_obj
+    
+    def queue_operation(self, func, *args, **kwargs):
+        """Queue an operation to be executed later."""
+        self._queue.append((func, args, kwargs))
+    
+    def execute_queue(self):
+        """Execute all queued operations in a single transaction."""
+        if not self._queue:
+            return
+        with self.db_adapter.get_session() as session:
+            for func, args, kwargs in self._queue:
+                func(session, *args, **kwargs)
+            session.commit()
+        self._queue = []
 
 
 

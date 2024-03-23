@@ -33,11 +33,11 @@ async def ip_scan_task(ip, ports, semaphore):
             await asyncio.sleep(0.01)  # Add a small delay to offset the time it takes to acquire the lock
             # print(f"Active requests: {active_requests}")
             
+            is_https = port == 443
+            ip_template = "http{}://{}:{}"
+            full_url = ip_template.format("s" if is_https else "", ip, port)
+            
             try:
-                is_https = port == 443
-                ip_template = "http{}://{}:{}"
-                full_url = ip_template.format("s" if is_https else "", ip, port)
-                
                 # if ping(full_url) is False:
                 #     print(f"❌ - {full_url} - [PING FAILED]")
                 #     raise InvalidResponse("Ping failed")
@@ -75,7 +75,12 @@ async def ip_scan_task(ip, ports, semaphore):
                         description=meta_tags.description,
                         body=response.body
                     )
-                    print(f"✅ - ({domain_name}) - ({ip_obj.ip}:{ip_obj.port}) - [{response.status_code}]")
+                    # ip_service.queue_operation(
+                    #     ip_service.upsert_ip,
+                    #     ip, domain_name, port, response.status_code,
+                    #     meta_tags.keywords, meta_tags.title, meta_tags.description, response.body
+                    # )
+                    print(f"✅ - ({domain_name}) - ({ip}:{port}) - [{response.status_code}] - added to queue")
             # TODO handle exceptions
             except SQLAlchemyError as e:
                 pass
@@ -140,4 +145,6 @@ if __name__ == "__main__":
     for chunk in chunks:
         semaphore = asyncio.Semaphore(config.crawler.max_workers)
         asyncio.run(ip_range_scan_task(semaphore, chunk, ports=config.crawler.ports))
+        print("Executing chunk queue with", len(ip_service._queue), "operations")
+        # ip_service.execute_queue()
         print("IP scan complete. Total valid IPs:", len(ip_service.get_valid_ips()))
