@@ -13,7 +13,7 @@ class RepresentableTable:
 class IPTable(Base, RepresentableTable):
     __tablename__ = "ips"
 
-    ip = Column(String, primary_key=True)
+    ip = Column(String(15), primary_key=True)
     domain = Column(String, nullable=True)
     port = Column(Integer)
     status = Column(Integer)
