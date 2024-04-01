@@ -2,11 +2,12 @@ import json
 import socket
 import sys
 import os
+import pymssql
 
 import tqdm
 
 from src.exceptions import InvalidResponse
-from src.models import Config
+from src.models import Config, IPTable
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
@@ -17,6 +18,7 @@ from src.database.adapter import DBAdapter
 from src.services.IPService import IPService
 from sqlalchemy.exc import SQLAlchemyError
 
+from data.credentials import *
 from src.modules.crawler import Crawler
 from src.modules.response_validator import ResponseValidator
 
@@ -43,11 +45,12 @@ async def ip_scan_task(ip, ports, semaphore):
                 #     raise InvalidResponse("Ping failed")
 
                 # check if ip is already in the database
-                if ip_service.get_ip(ip):
-                    should_be_rechecked = True  # TODO implement recheck function, ex: if last_checked < 1 week ago
-                    if not should_be_rechecked: 
-                        print(f"Skipping {full_url} - already scanned")
-                        continue
+                # TEMPORARILY DISABLED
+                # if ip_service.get_ip(ip):
+                #     should_be_rechecked = True  # TODO implement recheck function, ex: if last_checked < 1 week ago
+                #     if not should_be_rechecked: 
+                #         print(f"Skipping {full_url} - already scanned")
+                #         continue
                 
                 headers = {
                     "User-Agent": config.crawler.user_agent,
@@ -68,19 +71,19 @@ async def ip_scan_task(ip, ports, semaphore):
                     except socket.herror:
                         domain_name = response.url if response.url != ip else None
 
-                    ip_obj = ip_service.upsert_ip(
-                        ip, domain_name, port, response.status_code,
+                    obj = IPTable(
+                        ip=ip,
+                        domain=domain_name,
+                        port=port,
+                        status=response.status_code,
                         title=meta_tags.title,
                         keywords=meta_tags.keywords,
                         description=meta_tags.description,
                         body=response.body
+                        
                     )
-                    # ip_service.queue_operation(
-                    #     ip_service.upsert_ip,
-                    #     ip, domain_name, port, response.status_code,
-                    #     meta_tags.keywords, meta_tags.title, meta_tags.description, response.body
-                    # )
-                    print(f"✅ - ({domain_name}) - ({ip}:{port}) - [{response.status_code}] - added to queue")
+                    ip_service.add_ip(obj)
+                    print(f"✅ - ({domain_name}) - ({ip}:{port}) - [{response.status_code}] - added to the session to be committed.")
             # TODO handle exceptions
             except SQLAlchemyError as e:
                 pass
@@ -103,8 +106,7 @@ async def ip_scan_task(ip, ports, semaphore):
                 # Might need to handle this later
                 pass
             except Exception as e:
-                print(e.__class__.__name__, e)
-                exit()
+                print("CRITICAL ERROR:", e.__class__.__name__, e)
             finally:
                 async with counter_lock:
                     active_requests -= 1
@@ -128,10 +130,21 @@ if __name__ == "__main__":
 
     crawler = Crawler(config.crawler)
     validator = ResponseValidator()
-    db_adapter = DBAdapter("sqlite:///data/ip.db")
+    # db_adapter = DBAdapter(url="sqlite:///data/ip.db")
+    db_adapter = DBAdapter(
+        url='mssql+pymssql://',
+        creator=lambda: pymssql.connect(
+            server=server,
+            user=user,
+            password=password,
+            database=database,
+            port=port
+        ),
+        echo=True
+    )
     ip_service = IPService(db_adapter)
     print("Initial ips:", len(ip_service.get_ips()))
-
+    
     print("Starting IP scan...")
     chunks = []
     chunk_size = config.crawler.chunk_size
@@ -142,9 +155,20 @@ if __name__ == "__main__":
                 for d in range(0, 256, chunk_size):
                     chunks.append(((a, a+chunk_size), (b, b+chunk_size), (c, c+chunk_size), (d, d+chunk_size)))
 
-    for chunk in chunks:
-        semaphore = asyncio.Semaphore(config.crawler.max_workers)
-        asyncio.run(ip_range_scan_task(semaphore, chunk, ports=config.crawler.ports))
-        print("Executing chunk queue with", len(ip_service._queue), "operations")
-        # ip_service.execute_queue()
-        print("IP scan complete. Total valid IPs:", len(ip_service.get_valid_ips()))
+    # TODO remove this
+    import random
+    random.shuffle(chunks)
+    
+    try:
+        for chunk in chunks:
+            semaphore = asyncio.Semaphore(config.crawler.max_workers)
+            asyncio.run(ip_range_scan_task(semaphore, chunk, ports=config.crawler.ports))
+            print("IP scan complete")
+            print("New:", len(ip_service.db_adapter.persistent_session.new))
+            print("Updated:", len(ip_service.db_adapter.persistent_session.dirty))
+            print("Deleted:", len(ip_service.db_adapter.persistent_session.deleted))
+            ip_service.commit()
+            print("Total valid IPs:", len(ip_service.get_valid_ips()))
+    except KeyboardInterrupt:
+        print("Scan interrupted by user. Committing changes...")
+        ip_service.commit()
