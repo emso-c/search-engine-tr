@@ -55,6 +55,7 @@ class CrawlerConfig(BaseModel):
     allowed_protocols: list[str]
     retry_after_minutes: int
     fail_reason_weights: FailReasonWeight
+    max_document_length: int
     ports: List[int]
 
 

@@ -8,6 +8,7 @@
             "http",
             "https"
         ],
+        "max_document_length": 5000,
         "fail_reason_weights": {
             "INVALID_STATUS_CODE": 0.7,
             "NOT_AVAILABLE": 1,

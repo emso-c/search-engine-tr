@@ -1,9 +1,11 @@
+import re
 from src.utils import UniformResponse
 from collections import Counter
 from typing import List, Optional
 from lxml import html
 import tldextract
 
+from utils.config import default_config
 from src.models import (
     CrawlerConfig,
     LinkType,
@@ -84,16 +86,39 @@ class Crawler:
             keywords=keywords,
         )
 
-    def get_document_frequency(self, response: UniformResponse) -> Optional[Counter]:
-        try:
-            content = response.body
-            tree = html.fromstring(content)
-            text_content = tree.xpath("//body//text()")
-        except Exception as e:
-            print("There was an error parsing the html:", e)
-            return None
-
-        exclude = [
+    def _preprocess_document(self, content: str) -> str:
+        """Parse the document and return only the text content.
+        - Remove scripts, styles, etc.
+        - Remove comments
+        - Remove special characters & punctuation
+        - Remove stopwords
+        - Truncate long documents
+        - Remove empty lines & unnecessary whitespaces
+        """
+        
+        tree = html.fromstring(content)
+        text_content = tree.xpath("//body//text()")
+        processed_text = " ".join(text_content)
+        
+        # Remove scripts, styles, etc.
+        scripts = tree.xpath("//script")
+        for script in scripts:
+            script.getparent().remove(script)
+        
+        styles = tree.xpath("//style")
+        for style in styles:
+            style.getparent().remove(style)
+        
+        # Remove comments
+        comments = tree.xpath("//comment()")
+        for comment in comments:
+            comment.getparent().remove(comment)
+        
+        # Remove special characters & punctuation
+        processed_text = re.sub(r"[^\w\s]", "", processed_text)
+        
+        # Remove stopwords
+        stopwords = [
             "=",
             "?>",
             "(",
@@ -126,6 +151,26 @@ class Crawler:
             "/",
             "else",
         ]
+        stopwords = set(stopwords) 
+        processed_text = " ".join(word for word in processed_text.split() if word.lower() not in stopwords)
+        
+        # Remove empty lines & unnecessary whitespaces
+        processed_text = re.sub(r"\s+", " ", processed_text)
+        processed_text = processed_text.strip()
+        
+        # Truncate long documents  # TODO: get from config.json
+        max_length = 10000
+        if len(processed_text) > max_length:
+            processed_text = processed_text[:max_length]
+        
+        return processed_text
+
+    def get_document_frequency(self, response: UniformResponse) -> Optional[Counter]:
+        try:
+            text_content = self._preprocess_document(response.body)
+        except Exception as e:
+            print("There was an error parsing the html:", e)
+            return None
 
         # TODO improve exclusion logic
 
@@ -133,8 +178,6 @@ class Crawler:
         for text in text_content:
             words = text.split()
             unique_words = set(words)
-            if unique_words:
-                unique_words.difference_update(exclude)
             document_frequency.update(unique_words)
 
         if not document_frequency:
