@@ -17,6 +17,8 @@ from lxml.etree import ParserError
 from src.database.adapter import DBAdapter
 from src.services.IPService import IPService
 from sqlalchemy.exc import SQLAlchemyError
+from src.models import DocumentIndex
+from src.services.DocumentIndexService import DocumentIndexService
 
 from data.credentials import *
 from src.modules.crawler import Crawler
@@ -63,8 +65,17 @@ async def ip_scan_task(ip, ports, semaphore):
                         raise InvalidResponse("Response failed validation")
 
                     meta_tags = crawler.get_meta_tags(response)
-                    # links = crawler.get_links(response)
-                    # document_frequency = crawler.get_document_frequency(response)
+                    links = crawler.get_links(response)
+                    document_frequency = crawler.get_document_frequency(response)
+                    
+                    if document_frequency:
+                        for word, freq in document_frequency.items():
+                            document_index = DocumentIndex(
+                                document_id=response.url,
+                                word=word,
+                                frequency=freq
+                            )
+                            document_index_service.add_document_index(document_index)
 
                     try:
                         domain_name = socket.gethostbyaddr(ip)[0]
@@ -80,10 +91,10 @@ async def ip_scan_task(ip, ports, semaphore):
                         keywords=meta_tags.keywords,
                         description=meta_tags.description,
                         body=response.body
-                        
                     )
                     ip_service.add_ip(obj)
                     print(f"✅ - ({domain_name}) - ({ip}:{port}) - [{response.status_code}] - added to the session to be committed.")
+                    
             # TODO handle exceptions
             except SQLAlchemyError as e:
                 pass
@@ -105,6 +116,8 @@ async def ip_scan_task(ip, ports, semaphore):
                 # ValueError Unicode strings with encoding declaration are not supported. Please use bytes input or XML fragments without declaration.
                 # Might need to handle this later
                 pass
+            except KeyboardInterrupt:
+                raise KeyboardInterrupt
             except Exception as e:
                 print("CRITICAL ERROR:", e.__class__.__name__, e)
             finally:
@@ -142,6 +155,7 @@ if __name__ == "__main__":
         ),
         echo=True
     )
+    document_index_service = DocumentIndexService(db_adapter)
     ip_service = IPService(db_adapter)
     print("Initial ips:", len(ip_service.get_ips()))
     
@@ -159,16 +173,18 @@ if __name__ == "__main__":
     import random
     random.shuffle(chunks)
     
-    try:
-        for chunk in chunks:
+    for chunk in chunks:
+        try:
             semaphore = asyncio.Semaphore(config.crawler.max_workers)
             asyncio.run(ip_range_scan_task(semaphore, chunk, ports=config.crawler.ports))
-            print("IP scan complete")
-            print("New:", len(ip_service.db_adapter.persistent_session.new))
-            print("Updated:", len(ip_service.db_adapter.persistent_session.dirty))
-            print("Deleted:", len(ip_service.db_adapter.persistent_session.deleted))
+            print("IP scan complete for chunk")
+        except Exception as e:
+            print("CRITICAL ERROR:", e.__class__.__name__, e)
+        except KeyboardInterrupt:
+            print("Interrupted by user")
+            break
+        finally:
+            print("Committing changes...")
             ip_service.commit()
+            document_index_service.commit()
             print("Total valid IPs:", len(ip_service.get_valid_ips()))
-    except KeyboardInterrupt:
-        print("Scan interrupted by user. Committing changes...")
-        ip_service.commit()

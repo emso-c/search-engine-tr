@@ -7,8 +7,13 @@ class BaseService:
         self.db_adapter = db_adapter
         Base.metadata.create_all(self.db_adapter.engine)
 
-    def commit(self):
+    def commit(self, verbose=True):
         """Commit the current transaction."""
+        if not verbose:
+            self.db_adapter.get_session().commit()
+            return
+
+        print("Commiting Service:", self.__class__.__name__)
         print("New:", len(self.db_adapter.persistent_session.new))
         print("Updated:", len(self.db_adapter.persistent_session.dirty))
         print("Deleted:", len(self.db_adapter.persistent_session.deleted))
