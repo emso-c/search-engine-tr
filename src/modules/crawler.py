@@ -106,7 +106,7 @@ class Crawler:
             comment.extract()
 
         # Get text content
-        text_content = soup.get_text(separator=' ')
+        text_content = soup.get_text(separator=' ', strip=True)
 
         # Remove special characters & punctuation
         text_content = re.sub(r'[^\w\s]', ' ', text_content)
