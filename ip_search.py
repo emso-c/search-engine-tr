@@ -136,12 +136,43 @@ async def ip_range_scan_task(semaphore, ip_ranges = ((0, 16), (0, 16), (0, 16), 
     await asyncio.gather(*tasks)
 
 
+def generate_chunks(config:Config) -> list[tuple[tuple[int, int], tuple[int, int], tuple[int, int], tuple[int, int]]]:
+    chunk_size = config.crawler.chunk_size
+    if chunk_size > 256 or chunk_size < 1 or 256 % chunk_size != 0:
+        raise ValueError("Invalid chunk size")
+    chunks = []
+    for a in range(0, 256, chunk_size):
+        for b in range(0, 256, chunk_size):
+            for c in range(0, 256, chunk_size):
+                for d in range(0, 256, chunk_size):
+                    chunks.append(((a, a+chunk_size), (b, b+chunk_size), (c, c+chunk_size), (d, d+chunk_size)))
+    
+    # distrubuting the chunks among n amount of scripts running in parallel
+    machines = config.system.total_machines
+    machine_id = config.system.machine_id
+    if machine_id >= machines:
+        raise ValueError("Invalid machine id")
+
+    # check if config is valid and no chunk is left out
+    if len(chunks) % machines != 0:
+        print("Warning: Chunk size is not divisible by total machines, trying to distribute chunks evenly")
+        remaining_chunks = len(chunks) % machines
+        # add remaining chunks to the last n machines
+        for i in range(remaining_chunks):
+            chunks[-(i+1)] = (chunks[-(i+1)],)
+        
+    responsible_chunks = [chunk for i, chunk in enumerate(chunks) if i % machines == machine_id]
+    print("Total chunks:", len(chunks))
+    print(f"Your Machine (Machine {machine_id}) is responsible for {len(responsible_chunks)} chunks and {len(responsible_chunks) * config.crawler.chunk_size ** 4} IPs")
+    
+    return responsible_chunks
+
+
 if __name__ == "__main__":    
 
     with open("config.json") as f:
         config = Config(**json.load(f))
 
-    crawler = Crawler(config.crawler)
     validator = ResponseValidator()
     # db_adapter = DBAdapter(url="sqlite:///data/ip.db")
     db_adapter = DBAdapter(
@@ -160,31 +191,49 @@ if __name__ == "__main__":
     print("Initial ips:", len(ip_service.get_ips()))
     
     print("Starting IP scan...")
-    chunks = []
-    chunk_size = config.crawler.chunk_size
-    from tqdm import tqdm
-    for a in tqdm(range(0, 256, chunk_size), total=256//chunk_size, desc="Generating chunks"):
-        for b in range(0, 256, chunk_size):
-            for c in range(0, 256, chunk_size):
-                for d in range(0, 256, chunk_size):
-                    chunks.append(((a, a+chunk_size), (b, b+chunk_size), (c, c+chunk_size), (d, d+chunk_size)))
+    chunks = generate_chunks(config)
 
-    # TODO remove this
-    import random
-    random.shuffle(chunks)
-    
-    for chunk in chunks:
+    stop_event = threading.Event()
+
+    def process_chunks(chunks):
+        for chunk in chunks:
+            if stop_event.is_set():
+                print("Interrupted by user")
+                break
+            print("Processing chunk:", chunk)
+            try:
+                semaphore = asyncio.Semaphore(config.crawler.max_workers)
+                asyncio.run(ip_range_scan_task(semaphore, chunk, ports=config.crawler.ports))
+                print("IP scan complete for chunk")
+            except Exception as e:
+                print("CRITICAL ERROR:", e.__class__.__name__, e)
+                raise e
+            except KeyboardInterrupt:
+                print("Interrupted by user")
+                break
+            finally:
+                print("Committing changes...")
+                ip_service.commit()
+                document_index_service.commit()
+                print("Total valid IPs:", len(ip_service.get_valid_ips()))
+
+    parallelism = config.crawler.parallelism
+    threads = []
+    thread_chunk_size = len(chunks) // parallelism
+    for i in range(parallelism):
         try:
-            semaphore = asyncio.Semaphore(config.crawler.max_workers)
-            asyncio.run(ip_range_scan_task(semaphore, chunk, ports=config.crawler.ports))
-            print("IP scan complete for chunk")
-        except Exception as e:
-            print("CRITICAL ERROR:", e.__class__.__name__, e)
-        except KeyboardInterrupt:
-            print("Interrupted by user")
-            break
-        finally:
-            print("Committing changes...")
-            ip_service.commit()
-            document_index_service.commit()
-            print("Total valid IPs:", len(ip_service.get_valid_ips()))
+            t = threading.Thread(target=process_chunks, args=(chunks[i*thread_chunk_size:(i+1)*thread_chunk_size],))
+            t.daemon = True
+            print(f"Starting thread {t.name} ({i+1}/{parallelism})")
+            t.start()
+            threads.append(t)
+            while True:
+                if not t.is_alive():
+                    break
+                time.sleep(1)
+        except (KeyboardInterrupt, SystemExit):
+            print('Received keyboard interrupt, safely quitting threads. Wait for threads to finish...')
+            stop_event.set()
+    
+    for t in threads:
+        t.join() # wait for all threads to finish

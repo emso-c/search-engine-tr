@@ -66,7 +66,8 @@ class FailReasonWeight(BaseModel):
 
 
 class CrawlerConfig(BaseModel):
-    max_workers: int
+    parallelism: int  # number of programs running at the same time
+    max_workers: int  # number of threads in the pool
     chunk_size: int
     req_timeout: int
     user_agent: str
@@ -76,9 +77,13 @@ class CrawlerConfig(BaseModel):
     max_document_length: int
     ports: List[int]
 
+class SystemConfig(BaseModel):
+    machine_id: int
+    total_machines: int
 
 class Config(BaseModel):
     crawler: CrawlerConfig
+    system: SystemConfig
 
 
 class LinkType(Enum):

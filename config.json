@@ -1,7 +1,12 @@
 {
+    "system": {
+        "machine_id": 0,
+        "total_machines": 4
+    },
     "crawler": {
         "max_workers": 1024,
         "chunk_size": 8,
+        "parallelism": 2,
         "req_timeout": 10,
         "ports": [80, 443],
         "allowed_protocols": [
