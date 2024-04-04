@@ -1,11 +1,13 @@
 import re
+
+from bs4 import BeautifulSoup
+from bs4.element import Comment
 from src.utils import UniformResponse
 from collections import Counter
 from typing import List, Optional
 from lxml import html
 import tldextract
 
-from utils.config import default_config
 from src.models import (
     CrawlerConfig,
     LinkType,
@@ -95,90 +97,43 @@ class Crawler:
         - Truncate long documents
         - Remove empty lines & unnecessary whitespaces
         """
-        
-        tree = html.fromstring(content)
-        text_content = tree.xpath("//body//text()")
-        processed_text = " ".join(text_content)
-        
-        # Remove scripts, styles, etc.
-        scripts = tree.xpath("//script")
-        for script in scripts:
-            script.getparent().remove(script)
-        
-        styles = tree.xpath("//style")
-        for style in styles:
-            style.getparent().remove(style)
-        
-        # Remove comments
-        comments = tree.xpath("//comment()")
+        # Remove scripts, styles, comments, etc. using BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
+        for script in soup(["script", "style"]):
+            script.extract()
+        comments = soup.find_all(text=lambda text: isinstance(text, Comment))
         for comment in comments:
-            comment.getparent().remove(comment)
-        
+            comment.extract()
+
+        # Get text content
+        text_content = soup.get_text(separator=' ')
+
         # Remove special characters & punctuation
-        processed_text = re.sub(r"[^\w\s]", "", processed_text)
-        
-        # Remove stopwords
-        stopwords = [
-            "=",
-            "?>",
-            "(",
-            ")",
-            "{",
-            "}",
-            "[",
-            "]",
-            "!",
-            "?",
-            ".",
-            ",",
-            ":",
-            ";",
-            '"',
-            "'",
-            "’",
-            "‘",
-            "“",
-            "”",
-            "-",
-            "_",
-            "*",
-            "#",
-            "@",
-            "$",
-            "ve",
-            "veya",
-            "ile",
-            "/",
-            "else",
-        ]
-        stopwords = set(stopwords) 
-        processed_text = " ".join(word for word in processed_text.split() if word.lower() not in stopwords)
-        
-        # Remove empty lines & unnecessary whitespaces
-        processed_text = re.sub(r"\s+", " ", processed_text)
-        processed_text = processed_text.strip()
-        
-        # Truncate long documents  # TODO: get from config.json
+        text_content = re.sub(r'[^\w\s]', ' ', text_content)
+
+        # Remove extra whitespaces
+        text_content = re.sub(r'\s+', ' ', text_content).strip()
+
+        # Truncate long documents
         max_length = 10000
-        if len(processed_text) > max_length:
-            processed_text = processed_text[:max_length]
-        
-        return processed_text
+        if len(text_content) > max_length:
+            text_content = text_content[:max_length]
+
+        return text_content
 
     def get_document_frequency(self, response: UniformResponse) -> Optional[Counter]:
+        if not response.body:
+            return None
         try:
             text_content = self._preprocess_document(response.body)
         except Exception as e:
             print("There was an error parsing the html:", e)
             return None
 
-        # TODO improve exclusion logic
-
         document_frequency = Counter()
-        for text in text_content:
-            words = text.split()
-            unique_words = set(words)
-            document_frequency.update(unique_words)
+        unique_words = text_content.split()
+        # TODO do stemming and lemmatization
+        document_frequency.update(unique_words)
 
         if not document_frequency:
             return None
