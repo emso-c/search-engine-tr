@@ -21,6 +21,7 @@ class DBAdapter:
         if persistent:
             if self.persistent_session is None:
                 self.persistent_session = self.Session(expire_on_commit=False)
+                self.persistent_session.begin()
             return self.persistent_session
         return self.Session(expire_on_commit=False)
 

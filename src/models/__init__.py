@@ -13,7 +13,7 @@ class RepresentableTable:
 class IPTable(Base, RepresentableTable):
     __tablename__ = "ips"
 
-    ip = Column(String(15), primary_key=True)
+    ip = Column(String(15), primary_key=True)  # TODO some multiple domain names might have the same IP
     domain = Column(String, nullable=True)
     port = Column(Integer)
     status = Column(Integer)
@@ -25,6 +25,17 @@ class IPTable(Base, RepresentableTable):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
+class DocumentIndex(Base, RepresentableTable):
+    __tablename__ = "document_index"
+
+    index_id = Column(Integer, primary_key=True, autoincrement=True)
+    word = Column(String)
+    frequency = Column(Integer)
+    document_id = Column(String)  # TODO using domain address as domain for now
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
 ###########################################################################################################
 
 from enum import Enum
@@ -32,6 +43,13 @@ from typing import List, Union
 
 from pydantic import BaseModel
 
+class WordFrequency(BaseModel):
+    word: str
+    frequency: int
+
+class Document(BaseModel):
+    document_id: str|int
+    word_frequencies: list[WordFrequency]
 
 class FailEnum(Enum):
     INVALID_STATUS_CODE = 0  # 404, 500, etc.
