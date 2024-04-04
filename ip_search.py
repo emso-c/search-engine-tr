@@ -195,24 +195,27 @@ if __name__ == "__main__":
                 ip_service.commit()
                 document_index_service.commit()
                 print("Total valid IPs:", len(ip_service.get_valid_ips()))
+                time.sleep(1)
 
     parallelism = config.crawler.parallelism
     threads = []
     thread_chunk_size = len(chunks) // parallelism
-    for i in range(parallelism):
-        try:
+
+    try:
+        for i in range(parallelism):
             t = threading.Thread(target=process_chunks, args=(chunks[i*thread_chunk_size:(i+1)*thread_chunk_size],))
             t.daemon = True
             print(f"Starting thread {t.name} ({i+1}/{parallelism})")
             t.start()
             threads.append(t)
-            while True:
-                if not t.is_alive():
-                    break
-                time.sleep(1)
-        except (KeyboardInterrupt, SystemExit):
-            print('Received keyboard interrupt, safely quitting threads. Wait for threads to finish...')
-            stop_event.set()
-    
+
+        # Wait for interruption
+        while not stop_event.is_set():
+            time.sleep(1)
+
+    except (KeyboardInterrupt, SystemExit):
+        print('Received keyboard interrupt, safely quitting threads. Wait for threads to finish...')
+        stop_event.set()
+
     for t in threads:
-        t.join() # wait for all threads to finish
+        t.join()  # Wait for all threads to finish
