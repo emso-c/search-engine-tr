@@ -23,19 +23,17 @@ class IPService(BaseService):
         """Get a specific IP from the database."""
         self.db_adapter.get_session().query(IPTable).filter_by(ip=ip).first()
 
-    def update_ip(self, new_ip_obj: IPTable) -> IPTable:
+    def update_ip(self, new_obj: IPTable) -> IPTable:
         """Update an existing IP in the database."""
         session = self.db_adapter.get_session() 
-        existing_ip_obj = session.query(IPTable).filter_by(ip=new_ip_obj.ip).first()
-        existing_ip_obj.domain = new_ip_obj.domain
-        existing_ip_obj.port = new_ip_obj.port
-        existing_ip_obj.status = new_ip_obj.status
-        existing_ip_obj.updated_at = datetime.now()
-        existing_ip_obj.keywords = new_ip_obj.keywords or existing_ip_obj.keywords
-        existing_ip_obj.title = new_ip_obj.title or existing_ip_obj.title
-        existing_ip_obj.description = new_ip_obj.description or existing_ip_obj.description
-        existing_ip_obj.body = new_ip_obj.body or existing_ip_obj.body
-        return existing_ip_obj
+        updated_obj = session.query(IPTable).filter_by(ip=new_obj.ip, domain=new_obj.domain).first()
+        if not updated_obj:
+            raise ValueError(f"Cant find IP with ip: {new_obj.ip} and domain: {new_obj.domain} in the database.")
+
+        for attr in [attr for attr in dir(new_obj) if not attr.startswith("_")]:
+            setattr(updated_obj, attr, getattr(new_obj, attr))
+        
+        return updated_obj
 
     def delete_ip(self, ip: str) -> IPTable:
         """Delete a specific IP from the database."""

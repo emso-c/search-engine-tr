@@ -14,13 +14,13 @@ class BaseService:
             return
 
         print("Commiting Service:", self.__class__.__name__)
-        print("New:", len(self.db_adapter.persistent_session.new))
-        print("Updated:", len(self.db_adapter.persistent_session.dirty))
-        print("Deleted:", len(self.db_adapter.persistent_session.deleted))
         if self.db_adapter.get_session().dirty \
             or self.db_adapter.get_session().deleted \
             or self.db_adapter.get_session().new:
             self.db_adapter.get_session().commit()
-            print("Changes committed.")
+            print("Changes committed:")
+            print("New:", len(self.db_adapter.persistent_session.new))
+            print("Updated:", len(self.db_adapter.persistent_session.dirty))
+            print("Deleted:", len(self.db_adapter.persistent_session.deleted))
         else:
             print("No changes to commit.")

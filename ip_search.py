@@ -2,41 +2,36 @@ import json
 import socket
 import sys
 import os
-import pymssql
+from threading import Thread, Event
+import threading
+import time
 
-import tqdm
+from tqdm import tqdm
+
 
 from src.exceptions import InvalidResponse
-from src.models import Config, IPTable
+from src.models import Config, IPTable, SystemConfig
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 import aiohttp
 from src.utils import ResponseConverter, ping
 from lxml.etree import ParserError
-from src.database.adapter import DBAdapter
+from src.database.adapter import DBAdapter, load_db_adapter
 from src.services.IPService import IPService
 from sqlalchemy.exc import SQLAlchemyError
-from src.models import DocumentIndex
+from src.models import DocumentIndexTable
 from src.services.DocumentIndexService import DocumentIndexService
 
-from data.credentials import *
 from src.modules.crawler import Crawler
 from src.modules.response_validator import ResponseValidator
 
-active_requests = 0
-counter_lock = asyncio.Lock()
 
 async def ip_scan_task(ip, ports, semaphore):
     async with semaphore, aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=config.crawler.req_timeout)) as session:
         global active_requests
         
         for port in ports:
-            async with counter_lock:
-                active_requests += 1
-            await asyncio.sleep(0.01)  # Add a small delay to offset the time it takes to acquire the lock
-            # print(f"Active requests: {active_requests}")
-            
             is_https = port == 443
             ip_template = "http{}://{}:{}"
             full_url = ip_template.format("s" if is_https else "", ip, port)
@@ -64,18 +59,18 @@ async def ip_scan_task(ip, ports, semaphore):
                         print(f"❌ - {response.url} ({full_url}) [{response.status_code}] - {[fail.name for fail in fails]}")
                         raise InvalidResponse("Response failed validation")
 
-                    meta_tags = crawler.get_meta_tags(response)
-                    links = crawler.get_links(response)
-                    document_frequency = crawler.get_document_frequency(response)
+                    # meta_tags = crawler.get_meta_tags(response)
+                    # links = crawler.get_links(response)
+                    # document_frequency = crawler.get_document_frequency(response)
                     
-                    if document_frequency:
-                        for word, freq in document_frequency.items():
-                            document_index = DocumentIndex(
-                                document_id=response.url,
-                                word=word,
-                                frequency=freq
-                            )
-                            document_index_service.add_document_index(document_index)
+                    # if document_frequency:
+                    #     for word, freq in document_frequency.items():
+                    #         document_index = DocumentIndex(
+                    #             document_id=response.url,
+                    #             word=word,
+                    #             frequency=freq
+                    #         )
+                    #         document_index_service.add_document_index(document_index)
 
                     try:
                         domain_name = socket.gethostbyaddr(ip)[0]
@@ -87,10 +82,6 @@ async def ip_scan_task(ip, ports, semaphore):
                         domain=domain_name,
                         port=port,
                         status=response.status_code,
-                        title=meta_tags.title,
-                        keywords=meta_tags.keywords,
-                        description=meta_tags.description,
-                        body=response.body
                     )
                     ip_service.add_ip(obj)
                     print(f"✅ - ({domain_name}) - ({ip}:{port}) - [{response.status_code}] - added to the session to be committed.")
@@ -120,13 +111,10 @@ async def ip_scan_task(ip, ports, semaphore):
                 raise KeyboardInterrupt
             except Exception as e:
                 print("CRITICAL ERROR:", e.__class__.__name__, e)
-            finally:
-                async with counter_lock:
-                    active_requests -= 1
+
 
 async def ip_range_scan_task(semaphore, ip_ranges = ((0, 16), (0, 16), (0, 16), (0, 16)), ports = (80, 443)):
     tasks = []
-    
     for a in tqdm(range(ip_ranges[0][0], ip_ranges[0][1]), desc=f"Queueing IPs for chunk {ip_ranges}"):
         for b in range(ip_ranges[1][0], ip_ranges[1][1]):
             for c in range(ip_ranges[2][0], ip_ranges[2][1]):
@@ -174,22 +162,13 @@ if __name__ == "__main__":
         config = Config(**json.load(f))
 
     validator = ResponseValidator()
-    # db_adapter = DBAdapter(url="sqlite:///data/ip.db")
-    db_adapter = DBAdapter(
-        url='mssql+pymssql://',
-        creator=lambda: pymssql.connect(
-            server=server,
-            user=user,
-            password=password,
-            database=database,
-            port=port
-        ),
-        echo=True
-    )
-    document_index_service = DocumentIndexService(db_adapter)
-    ip_service = IPService(db_adapter)
-    print("Initial ips:", len(ip_service.get_ips()))
+    db_adapter = load_db_adapter()
     
+    ip_service = IPService(db_adapter)
+    document_index_service = DocumentIndexService(db_adapter)
+    
+    print("Initial ips:", len(ip_service.get_ips()))
+
     print("Starting IP scan...")
     chunks = generate_chunks(config)
 

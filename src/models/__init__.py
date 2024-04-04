@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, Float, Integer, LargeBinary, String
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -7,33 +7,44 @@ Base = declarative_base()
 
 class RepresentableTable:
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}({self.__dict__})>"
+        dict = self.__dict__.copy()
+        dict.pop("_sa_instance_state", None)
+        pretty = ", ".join([f"{k}={v}" for k, v in dict.items()])
+        return f"<{self.__class__.__name__}({pretty})>"
 
 
 class IPTable(Base, RepresentableTable):
     __tablename__ = "ips"
 
     ip = Column(String(15), primary_key=True)  # TODO some multiple domain names might have the same IP
-    domain = Column(String, nullable=True)
+    domain = Column(String(255), nullable=True, primary_key=True)
     port = Column(Integer)
     status = Column(Integer)
+    score = Column(Float, default=0.0)
+    last_crawled = Column(DateTime, nullable=True, default=None)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class PagesTable(Base, RepresentableTable):
+    __tablename__ = "pages"
+    
+    page_url = Column(String(255), primary_key=True)
     title = Column(String, nullable=True)
     keywords = Column(String, nullable=True)
     description = Column(String, nullable=True)
-    body = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    body = Column(LargeBinary, nullable=True)
+    favicon = Column(LargeBinary, nullable=True)
+    robotstxt = Column(LargeBinary, nullable=True)
+    sitemap = Column(LargeBinary, nullable=True)
 
 
-class DocumentIndex(Base, RepresentableTable):
+class DocumentIndexTable(Base, RepresentableTable):
     __tablename__ = "document_index"
 
-    index_id = Column(Integer, primary_key=True, autoincrement=True)
-    word = Column(String)
+    document_url = Column(String(255), primary_key=True)  # pages.page_url
+    word = Column(String(255), primary_key=True)
     frequency = Column(Integer)
-    document_id = Column(String)  # TODO using domain address as domain for now
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 ###########################################################################################################
