@@ -88,6 +88,7 @@ class Crawler:
             keywords = tree.xpath('//meta[@name="keywords"]/@content')
             keywords = keywords[0].split(",") if keywords else None
             keywords = [keyword.strip() for keyword in keywords] if keywords else None
+            keywords = ','.join(keywords) if keywords else None
         except Exception as e:
             print("There was an error getting meta tags:", e)
             # TODO log critical error
