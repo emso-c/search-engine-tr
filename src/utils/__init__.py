@@ -18,6 +18,11 @@ class UniformResponse(BaseModel):
 class ResponseConverter:
     @staticmethod
     async def from_aiohttp(response: aiohttp.ClientResponse) -> UniformResponse:
+        if isinstance(response, aiohttp.client._RequestContextManager):
+            raise ValueError("""
+            aiohttp.ClientSession.get() is an async context manager and not a response object.
+            Please use `async with session.get(url) as response:` and pass the response object to this method.
+            """)
         try:
             body_bytes = await response.read()
             body = body_bytes.decode('utf-8')
