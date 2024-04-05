@@ -147,7 +147,7 @@ class Crawler:
         base_url = self._get_base_url(response.url)
         try:
             with requests.get(base_url + "/robots.txt") as r:
-                if r.status_code == 200:
+                if r.status_code == 200 and r.headers.get("Content-Type") == "text/plain":
                     return r.content
         except Exception as e:
             print("Could not get robots.txt with the following url:", base_url)
@@ -157,7 +157,7 @@ class Crawler:
         base_url = self._get_base_url(response.url)
         try:
             with requests.get(base_url + "/sitemap.xml") as r:
-                if r.status_code == 200:
+                if r.status_code == 200 and r.headers.get("Content-Type") == "application/xml":
                     return r.content
         except Exception as e:
             print("Could not get sitemap with the following url:", base_url)
