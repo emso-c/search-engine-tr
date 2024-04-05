@@ -67,7 +67,7 @@ class DBAdapter:
     #                 print(f"Row {row} already exists in {table}")        
 
 
-def load_db_adapter():
+def load_db_adapter(echo=False):
     try:
         db_adapter = DBAdapter(
             url='mssql+pymssql://',
@@ -78,17 +78,16 @@ def load_db_adapter():
                 database=database,
                 port=port
             ),
-            echo=True
+            echo=echo
         )
-        # db_adapter.delete_db()
+        # if not db_adapter.engine.connect():
+        #     raise ConnectionError("Could not connect to the database")
         # TODO implement sync with remote database
         # print("Syncing with remote database")
         # DBAdapter(url="sqlite:///data/ip.db", echo=True).sync_with_remote(db_adapter.engine.url)
-        
+        print("Connected to the remote database")
         return db_adapter
-    except ConnectionError as e:
+    except (ConnectionError, OperationalError):
+        raise ConnectionError("Could not connect to the remote database")
         print("Warning: Could not connect to the database, falling back to local sqlite database")
-        return DBAdapter(url="sqlite:///data/ip.db", echo=True)
-    except OperationalError as e:
-        print("Warning: Could not connect to the database, falling back to local sqlite database")
-        return DBAdapter(url="sqlite:///data/ip.db", echo=True)
+        return DBAdapter(url="sqlite:///data/ip.db", echo=echo)

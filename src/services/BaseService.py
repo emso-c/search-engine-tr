@@ -9,15 +9,14 @@ class BaseService:
 
     def commit(self, verbose=True):
         """Commit the current transaction."""
+        session = self.db_adapter.get_session()
         if not verbose:
-            self.db_adapter.get_session().commit()
+            session.commit()
             return
 
         print("Commiting Service:", self.__class__.__name__)
-        if self.db_adapter.get_session().dirty \
-            or self.db_adapter.get_session().deleted \
-            or self.db_adapter.get_session().new:
-            self.db_adapter.get_session().commit()
+        if session.dirty or session.deleted or session.new:
+            session.commit()
             print("Changes committed:")
             print("New:", len(self.db_adapter.persistent_session.new))
             print("Updated:", len(self.db_adapter.persistent_session.dirty))

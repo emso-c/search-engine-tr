@@ -1,4 +1,5 @@
 import json
+import random
 import socket
 import sys
 import os
@@ -10,27 +11,22 @@ from tqdm import tqdm
 
 
 from src.exceptions import InvalidResponse
-from src.models import Config, IPTable, SystemConfig
+from src.models import Config, IPTable
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 import aiohttp
 from src.utils import ResponseConverter, ping
 from lxml.etree import ParserError
-from src.database.adapter import DBAdapter, load_db_adapter
+from src.database.adapter import load_db_adapter
 from src.services.IPService import IPService
 from sqlalchemy.exc import SQLAlchemyError
-from src.models import DocumentIndexTable
-from src.services.DocumentIndexService import DocumentIndexService
 
-from src.modules.crawler import Crawler
 from src.modules.response_validator import ResponseValidator
 
 
 async def ip_scan_task(ip, ports, semaphore):
-    async with semaphore, aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=config.crawler.req_timeout)) as session:
-        global active_requests
-        
+    async with semaphore, aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=config.crawler.req_timeout)) as session:        
         for port in ports:
             is_https = port == 443
             ip_template = "http{}://{}:{}"
@@ -85,7 +81,7 @@ async def ip_scan_task(ip, ports, semaphore):
                         port=port,
                         status=response.status_code,
                     )
-                    ip_service.add_ip(obj)
+                    ip_service.upsert_ip(obj)
                     print(f"✅ - ({domain_name}) - ({ip}:{port}) - [{response.status_code}] - added to the session to be committed.")
                     
             # TODO handle exceptions
@@ -157,52 +153,50 @@ def generate_chunks(config:Config) -> list[tuple[tuple[int, int], tuple[int, int
     
     return responsible_chunks
 
+with open("config.json") as f:
+    config = Config(**json.load(f))
 
-if __name__ == "__main__":    
+validator = ResponseValidator()
+db_adapter = load_db_adapter()
 
-    with open("config.json") as f:
-        config = Config(**json.load(f))
+ip_service = IPService(db_adapter)
 
-    validator = ResponseValidator()
-    db_adapter = load_db_adapter()
-    
-    ip_service = IPService(db_adapter)
-    document_index_service = DocumentIndexService(db_adapter)
-    
-    print("Initial ips:", len(ip_service.get_ips()))
+print("Initial ips:", len(ip_service.get_ips()))
 
-    print("Starting IP scan...")
-    chunks = generate_chunks(config)
+print("Starting IP scan...")
+chunks = generate_chunks(config)
 
-    stop_event = threading.Event()
+if config.crawler.shuffle_chunks:
+    random.shuffle(chunks)
 
-    def process_chunks(chunks):
-        for chunk in chunks:
+stop_event = threading.Event()
+
+def process_chunks(chunks):
+    for chunk in chunks:
+        try:
             if stop_event.is_set():
-                print("Interrupted by user")
-                break
+                raise KeyboardInterrupt
             print("Processing chunk:", chunk)
-            try:
-                semaphore = asyncio.Semaphore(config.crawler.max_workers)
-                asyncio.run(ip_range_scan_task(semaphore, chunk, ports=config.crawler.ports))
-                print("IP scan complete for chunk")
-            except Exception as e:
-                print("CRITICAL ERROR:", e.__class__.__name__, e)
-                raise e
-            except KeyboardInterrupt:
-                print("Interrupted by user")
-                break
-            finally:
-                print("Committing changes...")
-                ip_service.commit()
-                document_index_service.commit()
-                print("Total valid IPs:", len(ip_service.get_valid_ips()))
-                time.sleep(1)
+            semaphore = asyncio.Semaphore(config.crawler.max_workers)
+            asyncio.run(ip_range_scan_task(semaphore, chunk, ports=config.crawler.ports))
+            print("IP scan complete for chunk")
+        except Exception as e:
+            print("CRITICAL ERROR:", e.__class__.__name__, e)
+            raise e
+        except KeyboardInterrupt:
+            print("Interrupted by user")
+            break
+        finally:
+            print("Committing changes...")
+            ip_service.commit(verbose=False)
+            print("Total valid IPs:", len(ip_service.get_valid_ips()))
+            time.sleep(1)
 
-    parallelism = config.crawler.parallelism
-    threads = []
-    thread_chunk_size = len(chunks) // parallelism
+parallelism = config.crawler.parallelism
+threads = []
+thread_chunk_size = len(chunks) // parallelism
 
+def run():
     try:
         for i in range(parallelism):
             t = threading.Thread(target=process_chunks, args=(chunks[i*thread_chunk_size:(i+1)*thread_chunk_size],))
@@ -221,3 +215,6 @@ if __name__ == "__main__":
 
     for t in threads:
         t.join()  # Wait for all threads to finish
+
+if __name__ == "__main__":
+    run()

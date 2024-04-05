@@ -6,6 +6,7 @@
     "crawler": {
         "max_workers": 1024,
         "chunk_size": 8,
+        "shuffle_chunks": true,
         "parallelism": 2,
         "req_timeout": 10,
         "ports": [80, 443],

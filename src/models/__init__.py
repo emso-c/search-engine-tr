@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, DateTime, Float, Integer, LargeBinary, String
+from sqlalchemy import Column, DateTime, Float, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -13,6 +13,13 @@ class RepresentableTable:
         return f"<{self.__class__.__name__}({pretty})>"
 
 
+class URLFrontierTable(Base, RepresentableTable):
+    __tablename__ = "url_frontier"
+
+    url = Column(String(255), primary_key=True)
+    score = Column(Float, default=1.0)
+    created_at = Column(DateTime, default=datetime.now)
+
 class IPTable(Base, RepresentableTable):
     __tablename__ = "ips"
 
@@ -20,16 +27,17 @@ class IPTable(Base, RepresentableTable):
     domain = Column(String(255), nullable=True, primary_key=True)
     port = Column(Integer)
     status = Column(Integer)
-    score = Column(Float, default=0.0)
+    score = Column(Float, default=0.0, nullable=False)
     last_crawled = Column(DateTime, nullable=True, default=None)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
-class PagesTable(Base, RepresentableTable):
+class PageTable(Base, RepresentableTable):
     __tablename__ = "pages"
     
     page_url = Column(String(255), primary_key=True)
+    status_code = Column(Integer)
     title = Column(String, nullable=True)
     keywords = Column(String, nullable=True)
     description = Column(String, nullable=True)
@@ -37,6 +45,9 @@ class PagesTable(Base, RepresentableTable):
     favicon = Column(LargeBinary, nullable=True)
     robotstxt = Column(LargeBinary, nullable=True)
     sitemap = Column(LargeBinary, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    last_crawled = Column(DateTime, nullable=True, default=None)
 
 
 class DocumentIndexTable(Base, RepresentableTable):
@@ -87,6 +98,7 @@ class CrawlerConfig(BaseModel):
     fail_reason_weights: FailReasonWeight
     max_document_length: int
     ports: List[int]
+    shuffle_chunks: bool
 
 class SystemConfig(BaseModel):
     machine_id: int
@@ -119,4 +131,4 @@ class Link(BaseModel):
 class MetaTags(BaseModel):
     title: Union[str, None]
     description: Union[str, None]
-    keywords: Union[List[str], None]
+    keywords: Union[str, None]

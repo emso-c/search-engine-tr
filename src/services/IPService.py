@@ -15,9 +15,23 @@ class IPService(BaseService):
         session.add(ip_obj)
         return ip_obj
 
+    def increment_ip_score(self, ip: str, score: float) -> IPTable:
+        """Increment the score of an IP in the database."""
+        session = self.db_adapter.get_session()
+        ip_obj = session.query(IPTable).filter_by(ip=ip).first()
+        if not ip_obj:
+            raise ValueError(f"Cant find IP with ip: {ip} in the database.")
+        ip_obj.score += score
+        return ip_obj
+
     def get_ips(self) -> List[IPTable]:
         """Get all IPs from the database."""
         return self.db_adapter.get_session().query(IPTable).all()
+    
+    def get_ip_by_domain(self, domain: str) -> IPTable:
+        """Get all IPs with a specific domain from the database."""
+        session = self.db_adapter.get_session()
+        return session.query(IPTable).filter_by(domain=domain).first() # TODO could there be multiple domains with different ip's? 
     
     def get_ip(self, ip: str) -> Optional[IPTable]:
         """Get a specific IP from the database."""
@@ -30,8 +44,10 @@ class IPService(BaseService):
         if not updated_obj:
             raise ValueError(f"Cant find IP with ip: {new_obj.ip} and domain: {new_obj.domain} in the database.")
 
-        for attr in [attr for attr in dir(new_obj) if not attr.startswith("_")]:
+        for attr in [attr for attr in dir(new_obj) if not attr.startswith("_") and attr not in ["created_at", "updated_at", "score"]]:
             setattr(updated_obj, attr, getattr(new_obj, attr))
+        setattr(updated_obj, "updated_at", datetime.now())
+        setattr(updated_obj, "score", new_obj.score)
         
         return updated_obj
 
@@ -60,7 +76,7 @@ class IPService(BaseService):
     def upsert_ip(self, new_ip_obj:IPTable) -> IPTable:
         """Add a new IP or update an existing one in the database."""
         session = self.db_adapter.get_session()
-        ip_obj = session.query(IPTable).filter_by(ip=new_ip_obj.ip).first()
+        ip_obj = session.query(IPTable).filter_by(ip=new_ip_obj.ip, domain=new_ip_obj.domain).first()
         if ip_obj:
             self.update_ip(new_ip_obj)
         else:

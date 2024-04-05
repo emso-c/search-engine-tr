@@ -14,6 +14,7 @@ class UniformResponse(BaseModel):
     status_code: int
     headers: dict
     body: Optional[str]
+    content_bytes: Optional[bytes]
 
 class ResponseConverter:
     @staticmethod
@@ -33,7 +34,8 @@ class ResponseConverter:
             url=str(response.url),
             body=body,
             headers=response.headers,
-            status_code=response.status
+            status_code=response.status,
+            content_bytes=body_bytes
         )
 
     @staticmethod
@@ -42,7 +44,8 @@ class ResponseConverter:
             url=response.url,
             body=response.text,
             headers=response.headers,
-            status_code=response.status_code
+            status_code=response.status_code,
+            body_bytes=response.content
         )
 
 def ping(host):

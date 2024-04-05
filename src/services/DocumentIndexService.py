@@ -93,10 +93,11 @@ class DocumentIndexService(BaseService):
     def update_document_index(self, new_obj: DocumentIndexTable) -> DocumentIndexTable:
         """Update an existing document index in the database."""
         session = self.db_adapter.get_session()
-        obj = session.query(DocumentIndexTable).filter_by(document_url=new_obj.document_url, word=new_obj.word).first()
-        for attr in [attr for attr in dir(new_obj) if not attr.startswith("_")]:
-            setattr(obj, attr, getattr(new_obj, attr))
-        return obj
+        updated_obj = session.query(DocumentIndexTable).filter_by(document_url=new_obj.document_url, word=new_obj.word).first()
+        for attr in [attr for attr in dir(new_obj) if not attr.startswith("_")  and attr not in ["created_at", "updated_at"]]:
+            setattr(updated_obj, attr, getattr(new_obj, attr))
+        setattr(updated_obj, "updated_at", datetime.now())
+        return updated_obj
     
     def delete_document_index(self, document_url: str, word: str) -> DocumentIndexTable:
         """Delete a specific document index from the database."""
