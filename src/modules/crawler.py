@@ -133,6 +133,36 @@ class Crawler:
 
         return text_content
 
+    def get_favicon(self, response: UniformResponse) -> Optional[bytes]:
+        base_url = self._get_base_url(response.url)
+        try:
+            with requests.get(base_url + "/favicon.ico") as r:
+                if r.status_code == 200:
+                    return r.content
+        except Exception as e:
+            print("Could not get favicon with the following url:", base_url)
+        return None
+        
+    def get_robots_txt(self, response: UniformResponse) -> Optional[bytes]:
+        base_url = self._get_base_url(response.url)
+        try:
+            with requests.get(base_url + "/robots.txt") as r:
+                if r.status_code == 200:
+                    return r.content
+        except Exception as e:
+            print("Could not get robots.txt with the following url:", base_url)
+        return None
+
+    def get_sitemap(self, response: UniformResponse) -> Optional[bytes]:
+        base_url = self._get_base_url(response.url)
+        try:
+            with requests.get(base_url + "/sitemap.xml") as r:
+                if r.status_code == 200:
+                    return r.content
+        except Exception as e:
+            print("Could not get sitemap with the following url:", base_url)
+        return None
+
     def get_document_frequency(self, response: UniformResponse) -> Optional[Counter]:
         if not response.body:
             return None
