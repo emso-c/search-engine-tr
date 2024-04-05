@@ -134,11 +134,25 @@ class Crawler:
         return text_content
 
     def get_favicon(self, response: UniformResponse) -> Optional[bytes]:
-        base_url = self._get_base_url(response.url)
         try:
+            base_url = self._get_base_url(response.url)
             with requests.get(base_url + "/favicon.ico") as r:
                 if r.status_code == 200:
                     return r.content
+            
+            soup = BeautifulSoup(response.body, 'html.parser')
+            link = soup.find("link", rel="shortcut icon")
+            if link:
+                with requests.get(base_url + link["href"]) as r:
+                    if r.status_code == 200:
+                        return r.content
+            
+            link = soup.find("link", rel="icon")
+            if link:
+                with requests.get(base_url + link["href"]) as r:
+                    if r.status_code == 200:
+                        return r.content
+            
         except Exception as e:
             print("Could not get favicon with the following url:", base_url)
         return None
