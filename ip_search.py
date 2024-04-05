@@ -74,6 +74,8 @@ async def ip_scan_task(ip, ports, semaphore):
 
                     try:
                         domain_name = socket.gethostbyaddr(ip)[0]
+                        if not domain_name.startswith("http" if is_https else "https"):
+                            domain_name = f"http{'s' if is_https else ''}://{domain_name}"
                     except socket.herror:
                         domain_name = response.url if response.url != ip else None
 
