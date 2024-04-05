@@ -38,6 +38,9 @@ class ResponseValidator:
             return None
 
         content = response.body
+        
+        if not content:
+            return FailEnum.NO_CONTENT
 
         tree = html.fromstring(content)
 
