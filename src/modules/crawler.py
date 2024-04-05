@@ -7,6 +7,8 @@ from collections import Counter
 from typing import List, Optional
 from lxml import html
 import tldextract
+from urllib.parse import urlparse
+import requests
 
 from src.models import (
     CrawlerConfig,
@@ -15,22 +17,33 @@ from src.models import (
     MetaTags,
 )
 
-class Crawler:
-    # depends on LinkType, Link, CrawlerConfig, MetaTags
-    # lxml, aiohttp, tldextract, collections.Counter
+invalid_file_extensions = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".csv", ".zip", ".rar", ".tar", ".gz", ".7z", ".mp3", ".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".wav", ".ogg", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".bmp", ".webp", ".ico", ".css", ".js", ".json", ".xml", ".yaml", ".yml", ".txt", ".log", ".md", ".html", ".htm", ".php", ".asp", ".aspx", ".jsp", ".py", ".rb", ".java", ".c", ".cpp", ".h", ".hpp", ".cs", ".go", ".rs", ".sh", ".bat", ".ps1", ".psm1", ".psd1", ".ps1xml", ".pssc", ".psc1"]
 
+class Crawler:
     def __init__(self, config: CrawlerConfig):
         self.config = config
 
+    def _get_base_url(self, url: str, lib:str='urllib') -> str:
+        if lib == 'urllib':
+            parsed_uri = urlparse(url)
+            result = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri).strip()
+            return result
+        elif lib == 'tldextract':
+            return tldextract.extract(url).registered_domain
+
     def _get_link_type(self, page_url: str, link: str) -> LinkType:
-        base_url = tldextract.extract(page_url).registered_domain
+        base_url = self._get_base_url(page_url)
+        
+        # Check invalid file extensions
+        if any([link.endswith(ext) for ext in invalid_file_extensions]):
+            return LinkType.INVALID
 
         # Check if the link is in the same domain
         if base_url in link:
             return LinkType.INTERNAL
 
         # Check if the link is in the same subdomain
-        if tldextract.extract(link).registered_domain == base_url:
+        if self._get_base_url(link) == base_url:
             return LinkType.INTERNAL
 
         # Check if the link starts with /
@@ -52,15 +65,13 @@ class Crawler:
         except Exception as e:
             print("There was an error parsing the html:", e)
             return result
-
-        # TODO: remove links that are not html
-
+        
         # check if link is external or internal
         for link in links:
             link = str(link)
             # TODO sanitize more here
             link_type = self._get_link_type(response.url, link)
-            base_url = tldextract.extract(response.url).registered_domain
+            base_url = self._get_base_url(response.url)
             result.append(Link(type=link_type, base_url=base_url, href=link))
 
         return result
