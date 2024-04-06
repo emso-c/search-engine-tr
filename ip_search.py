@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 import aiohttp
-from src.utils import ResponseConverter, ping
+from src.utils import ResponseConverter, get_reserved_ips, ping
 from lxml.etree import ParserError
 from src.database.adapter import load_db_adapter
 from src.services.IPService import IPService
@@ -115,34 +115,12 @@ async def ip_range_scan_task(semaphore, ip_ranges = ((0, 16), (0, 16), (0, 16), 
     await asyncio.gather(*tasks)
 
 
-reserved_blocks = [
-    (ipaddress.IPv4Network('0.0.0.0/8'),),
-    (ipaddress.IPv4Network('10.0.0.0/8'),),
-    (ipaddress.IPv4Network('100.64.0.0/10'),),
-    (ipaddress.IPv4Network('127.0.0.0/8'),),
-    (ipaddress.IPv4Network('169.254.0.0/16'),),
-    (ipaddress.IPv4Network('172.16.0.0/12'),),
-    (ipaddress.IPv4Network('192.0.0.0/24'),),
-    (ipaddress.IPv4Network('192.0.2.0/24'),),
-    (ipaddress.IPv4Network('192.88.99.0/24'),),
-    (ipaddress.IPv4Network('192.168.0.0/16'),),
-    (ipaddress.IPv4Network('198.18.0.0/15'),),
-    (ipaddress.IPv4Network('198.51.100.0/24'),),
-    (ipaddress.IPv4Network('203.0.113.0/24'),),
-    (ipaddress.IPv4Network('224.0.0.0/4'),),
-    (ipaddress.IPv4Network('233.252.0.0/24'),),
-    (ipaddress.IPv4Network('240.0.0.0/4'),),
-    (ipaddress.IPv4Network('255.255.255.255/32'),)
-]
-
 def generate_ip_chunks(config:Config) -> list[tuple[tuple[int, int], tuple[int, int], tuple[int, int], tuple[int, int]]]:
     csize = config.crawler.chunk_size
     if csize > 256 or csize < 1 or 256 % csize != 0:
         raise ValueError("Invalid chunk size")
     
-    reserved_ips = set()
-    for block in reserved_blocks:
-        reserved_ips.update(set(block[0]))
+    reserved_ips = get_reserved_ips()
 
     chunks = []
     for a in range(0, 256, csize):
@@ -184,7 +162,7 @@ ip_service = IPService(db_adapter)
 
 print("Initial ips:", len(ip_service.get_ips()))
 
-print("Starting IP scan...")
+print("Generating IP chunks...")
 chunks = generate_ip_chunks(config)
 
 if config.crawler.shuffle_chunks:
@@ -218,6 +196,7 @@ threads = []
 thread_chunk_size = len(chunks) // parallelism
 
 def run():
+    print("Starting IP scan...")
     try:
         for i in range(parallelism):
             t = threading.Thread(target=process_chunks, args=(chunks[i*thread_chunk_size:(i+1)*thread_chunk_size],))
