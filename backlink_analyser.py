@@ -49,7 +49,7 @@ def _is_same_subbdomain(url1: str, url2: str) -> bool:
 print("Initial backlink count:", backlink_service.count())
 
 
-# ip_service.remove_duplicates()
+ip_service.remove_duplicates()
 
 # clear the scores before updating to
 # avoid adding to existing scores
