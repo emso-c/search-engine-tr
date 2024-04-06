@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from src.exceptions import InvalidResponse
 from src.models import Config, IPTable
+from src.modules.crawler import Crawler
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
@@ -27,15 +28,20 @@ from src.modules.response_validator import ResponseValidator
 
 async def ip_scan_task(ip, ports, semaphore):
     async with semaphore, aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=config.crawler.req_timeout)) as session:        
-        for port in ports:
-            is_https = port == 443
-            ip_template = "http{}://{}:{}"
-            full_url = ip_template.format("s" if is_https else "", ip, port)
-            
-            try:
-                # if ping(full_url) is False:
-                #     print(f"❌ - {full_url} - [PING FAILED]")
-                #     raise InvalidResponse("Ping failed")
+        try:
+            # if ping(ip) is False:
+            #     print(f"❌ - {ip} - [PING FAILED]")
+            #     raise InvalidResponse("Ping failed")
+
+            for port in ports:
+                is_https = port == 443
+                ip_template = "http{}://{}:{}"
+                full_url = ip_template.format("s" if is_https else "", ip, port)
+                
+                # robotstxt = crawler.get_robots_txt(full_url)
+                # if robotstxt and not crawler.can_fetch(robotstxt, full_url):
+                #     print(f"❌ - 🤖 {full_url} - Disallowed by robots.txt")
+                #     raise InvalidResponse("Disallowed by robots.txt")
 
                 # check if ip is already in the database
                 # TEMPORARILY DISABLED
@@ -72,30 +78,30 @@ async def ip_scan_task(ip, ports, semaphore):
                     print(f"✅ - ({domain_name}) - ({ip}:{port}) - [{response.status_code}] - added to the session to be committed.")
                     
             # TODO handle exceptions
-            except SQLAlchemyError as e:
-                pass
-            except aiohttp.ClientConnectorError as e:
-                pass
-            except aiohttp.ClientOSError as e:
-                pass
-            except asyncio.TimeoutError as e:
-                pass
-            except aiohttp.ServerDisconnectedError as e:
-                pass
-            except aiohttp.ClientResponseError as e:
-                pass
-            except InvalidResponse as e:
-                pass
-            except ParserError as e:
-                pass
-            except ValueError as e:
-                # ValueError Unicode strings with encoding declaration are not supported. Please use bytes input or XML fragments without declaration.
-                # Might need to handle this later
-                pass
-            except KeyboardInterrupt:
-                raise KeyboardInterrupt
-            except Exception as e:
-                print("CRITICAL ERROR:", e.__class__.__name__, e)
+        except SQLAlchemyError as e:
+            pass
+        except aiohttp.ClientConnectorError as e:
+            pass
+        except aiohttp.ClientOSError as e:
+            pass
+        except asyncio.TimeoutError as e:
+            pass
+        except aiohttp.ServerDisconnectedError as e:
+            pass
+        except aiohttp.ClientResponseError as e:
+            pass
+        except InvalidResponse as e:
+            pass
+        except ParserError as e:
+            pass
+        except ValueError as e:
+            # ValueError Unicode strings with encoding declaration are not supported. Please use bytes input or XML fragments without declaration.
+            # Might need to handle this later
+            pass
+        except KeyboardInterrupt:
+            raise KeyboardInterrupt
+        except Exception as e:
+            print("CRITICAL ERROR:", e.__class__.__name__, e)
 
 
 async def ip_range_scan_task(semaphore, ip_ranges = ((0, 16), (0, 16), (0, 16), (0, 16)), ports = (80, 443)):
@@ -144,6 +150,7 @@ with open("config.json") as f:
     config = Config(**json.load(f))
 
 validator = ResponseValidator()
+crawler = Crawler(config.crawler)
 db_adapter = load_db_adapter()
 
 ip_service = IPService(db_adapter)

@@ -164,8 +164,11 @@ class Crawler:
             print("Could not get favicon with the following url:", base_url)
         return None
         
-    def get_robots_txt(self, response: UniformResponse) -> Optional[bytes]:
-        base_url = self._get_base_url(response.url)
+    def get_robots_txt(self, response: UniformResponse|str) -> Optional[bytes]:
+        if isinstance(response, str):
+            base_url = self._get_base_url(response)
+        else:
+            base_url = self._get_base_url(response.url)
         try:
             with requests.get(base_url + "/robots.txt") as r:
                 if r.status_code == 200 and r.headers.get("Content-Type") == "text/plain":

@@ -40,11 +40,10 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
     async with semaphore, aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=config.crawler.req_timeout)) as session:
         try:
             # TODO look for the robots.txt file in the db first
-
-            robotstxt = crawler.get_robots_txt(page_url)
-            if not crawler.can_fetch(robotstxt, page_url):
-                print(f"⚠️ - Page Crawl - {page_url} - Disallowed by robots.txt")
-                return
+            # robotstxt = crawler.get_robots_txt(page_url)
+            # if robotstxt and not crawler.can_fetch(robotstxt, page_url):
+            #     print(f"❌ - 🤖 Page Crawl - {page_url} - Disallowed by robots.txt")
+            #     return
             
             headers = {
                 "User-Agent": config.crawler.user_agent,
@@ -54,7 +53,7 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                 response = await ResponseConverter.from_aiohttp(response)
                 fails = validator.validate(response)
                 if fails:
-                    print(f"❌ - Page Crawl - {response.url} ({page_url}) [{response.status_code}] - {[fail.name for fail in fails]}")
+                    print(f"❌ - 🕷️ Page Crawl - {response.url} ({page_url}) [{response.status_code}] - {[fail.name for fail in fails]}")
                     raise InvalidResponse("Response failed validation")
 
                 meta_tags = crawler.get_meta_tags(response)
@@ -79,7 +78,7 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                 # Update the objects last_crawled
                 obj.last_crawled = last_crawled
                 page_service.upsert_page(page_obj)
-                print(f"✅ - Page Crawl - {response.url} ({page_url}) - added to the page session to be committed.")
+                print(f"✅ - 🕷️ Page Crawl - {response.url} ({page_url}) - added to the page session to be committed.")
                 
                 links = crawler.get_links(response)
                 if not links or not all([link.type == LinkType.INVALID for link in links]):
@@ -94,9 +93,9 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                         if link.type == LinkType.INTERNAL:
                             if not page_service.get_page(link.full_url):
                                 page_service.add_page(PageTable(page_url=link.full_url, last_crawled=None))
-                                print(f"✅ - 🏠 Internal Page Discover - ({link.full_url}) - added to the page session to be committed.")
+                                print(f"✅ - ↩️ Internal Page Discover - ({link.full_url}) - added to the page session to be committed.")
                             else:
-                                print(f"⚠️ - 🏠 Internal Page Discover - ({link.full_url}) - already exists in the database.")
+                                print(f"⚠️ - ↩️ Internal Page Discover - ({link.full_url}) - already exists in the database.")
                         elif link.type == LinkType.EXTERNAL:
                             target_ip = ip_service.get_ip_by_domain(link.full_url)
                             if not target_ip:
@@ -105,9 +104,9 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                                 # we could, but it should not be the responsibility of the page scan task
                                 if not url_frontier_service.get_url(link.full_url):
                                     url_frontier_service.add_url(link.full_url)
-                                    print(f"✅ - 🌐 External Page Discover: URL Frontier - ({link.full_url}) - added to the URL frontier.")
+                                    print(f"✅ - 🌐 External Page Discover - ({link.full_url}) - added to the URL frontier.")
                                 else :
-                                    print(f"⚠️ - 🌐 External Page Discover: URL Frontier - ({link.full_url}) - already exists in the URL frontier.")
+                                    print(f"⚠️ - 🌐 External Page Discover - ({link.full_url}) - already exists in the URL frontier.")
                             backlink_service.add_backlink(BacklinkTable(source_url=page_url, target_url=link.full_url, anchor_text=link.anchor_text))
                             print(f"✅ - 🔗 External Page Discover: Backlink - ({page_url}) -> ({link.full_url}) - added to the backlink session to be committed.")
                 else:
@@ -130,7 +129,7 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
         except KeyboardInterrupt:
             raise KeyboardInterrupt
         except Exception as e:
-            print("CRITICAL ERROR:", e.__class__.__name__, e)
+            print("❌ - 🕷️ CRITICAL ERROR:", e.__class__.__name__, e)
 
 
 async def generate_page_scan_tasks(semaphore, limit=50):
