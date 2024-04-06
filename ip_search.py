@@ -8,7 +8,7 @@ import threading
 import time
 
 from tqdm import tqdm
-
+import ipaddress
 
 from src.exceptions import InvalidResponse
 from src.models import Config, IPTable
@@ -115,16 +115,43 @@ async def ip_range_scan_task(semaphore, ip_ranges = ((0, 16), (0, 16), (0, 16), 
     await asyncio.gather(*tasks)
 
 
-def generate_chunks(config:Config) -> list[tuple[tuple[int, int], tuple[int, int], tuple[int, int], tuple[int, int]]]:
-    chunk_size = config.crawler.chunk_size
-    if chunk_size > 256 or chunk_size < 1 or 256 % chunk_size != 0:
+reserved_blocks = [
+    (ipaddress.IPv4Network('0.0.0.0/8'),),
+    (ipaddress.IPv4Network('10.0.0.0/8'),),
+    (ipaddress.IPv4Network('100.64.0.0/10'),),
+    (ipaddress.IPv4Network('127.0.0.0/8'),),
+    (ipaddress.IPv4Network('169.254.0.0/16'),),
+    (ipaddress.IPv4Network('172.16.0.0/12'),),
+    (ipaddress.IPv4Network('192.0.0.0/24'),),
+    (ipaddress.IPv4Network('192.0.2.0/24'),),
+    (ipaddress.IPv4Network('192.88.99.0/24'),),
+    (ipaddress.IPv4Network('192.168.0.0/16'),),
+    (ipaddress.IPv4Network('198.18.0.0/15'),),
+    (ipaddress.IPv4Network('198.51.100.0/24'),),
+    (ipaddress.IPv4Network('203.0.113.0/24'),),
+    (ipaddress.IPv4Network('224.0.0.0/4'),),
+    (ipaddress.IPv4Network('233.252.0.0/24'),),
+    (ipaddress.IPv4Network('240.0.0.0/4'),),
+    (ipaddress.IPv4Network('255.255.255.255/32'),)
+]
+
+def generate_ip_chunks(config:Config) -> list[tuple[tuple[int, int], tuple[int, int], tuple[int, int], tuple[int, int]]]:
+    csize = config.crawler.chunk_size
+    if csize > 256 or csize < 1 or 256 % csize != 0:
         raise ValueError("Invalid chunk size")
+    
+    reserved_ips = set()
+    for block in reserved_blocks:
+        reserved_ips.update(set(block[0]))
+
     chunks = []
-    for a in range(0, 256, chunk_size):
-        for b in range(0, 256, chunk_size):
-            for c in range(0, 256, chunk_size):
-                for d in range(0, 256, chunk_size):
-                    chunks.append(((a, a+chunk_size), (b, b+chunk_size), (c, c+chunk_size), (d, d+chunk_size)))
+    for a in range(0, 256, csize):
+        for b in range(0, 256, csize):
+            for c in range(0, 256, csize):
+                for d in range(0, 256, csize):
+                    if ipaddress.IPv4Address(f"{a}.{b}.{c}.{d}") in reserved_ips:
+                        continue
+                    chunks.append(((a, a+csize), (b, b+csize), (c, c+csize), (d, d+csize)))
     
     # distrubuting the chunks among n amount of scripts running in parallel
     machines = config.system.total_machines
@@ -158,7 +185,7 @@ ip_service = IPService(db_adapter)
 print("Initial ips:", len(ip_service.get_ips()))
 
 print("Starting IP scan...")
-chunks = generate_chunks(config)
+chunks = generate_ip_chunks(config)
 
 if config.crawler.shuffle_chunks:
     random.shuffle(chunks)
