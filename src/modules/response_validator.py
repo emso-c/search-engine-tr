@@ -33,8 +33,6 @@ class ResponseValidator:
     def _check_content_language(
         self, response: UniformResponse
     ) -> Union[None, FailEnum]:
-        return None
-
         # check response headers
         if response.headers.get("Content-Language") in ["tr", "tr-TR", "tr_TR"]:
             return None

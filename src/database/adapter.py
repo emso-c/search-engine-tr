@@ -73,7 +73,6 @@ class DBAdapter:
 
 
 def load_db_adapter(echo=False):
-    return DBAdapter(url="sqlite:///data/ip.db", echo=echo)
     try:
         db_adapter = DBAdapter(
             url='mssql+pymssql://',

@@ -72,7 +72,6 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                     body=response.content_bytes,
                     favicon=favicon,
                     robotstxt=robots_txt,
-                    robotstxt=robots_txt,
                     sitemap=sitemap,
                     last_crawled=last_crawled,
                 )
