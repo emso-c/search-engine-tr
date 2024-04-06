@@ -15,6 +15,12 @@ class PageService(BaseService):
         session = self.db_adapter.get_session()
         return session.query(PageTable).all()
     
+    def count_unscanned_pages(self) -> int:
+        """Count the number of unscanned pages."""
+        session = self.db_adapter.get_session()
+        val = session.query(PageTable).filter(PageTable.last_crawled == None).count()
+        return val if val else 0
+    
     def get_page(self, page_url: str) -> Optional[PageTable]:
         """Get a specific page from the database."""
         session = self.db_adapter.get_session()
