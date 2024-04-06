@@ -39,6 +39,13 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
 
     async with semaphore, aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=config.crawler.req_timeout)) as session:
         try:
+            # TODO look for the robots.txt file in the db first
+
+            robotstxt = crawler.get_robots_txt(page_url)
+            if not crawler.can_fetch(robotstxt, page_url):
+                print(f"⚠️ - Page Crawl - {page_url} - Disallowed by robots.txt")
+                return
+            
             headers = {
                 "User-Agent": config.crawler.user_agent,
             }
@@ -52,7 +59,7 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
 
                 meta_tags = crawler.get_meta_tags(response)
                 favicon = crawler.get_favicon(response)
-                robots_txt = crawler.get_robots_txt(response)
+                robots_txt = robotstxt # already fetched
                 sitemap = crawler.get_sitemap(response)
                 last_crawled = datetime.now()
 

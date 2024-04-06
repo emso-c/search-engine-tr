@@ -8,6 +8,7 @@ from typing import List, Optional
 from lxml import html
 import tldextract
 from urllib.parse import urlparse
+from urllib import robotparser
 import requests
 
 from src.models import (
@@ -22,7 +23,8 @@ invalid_file_extensions = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".x
 class Crawler:
     def __init__(self, config: CrawlerConfig):
         self.config = config
-
+        self.parser = robotparser.RobotFileParser()
+    
     def _get_base_url(self, url: str, lib:str='urllib') -> str:
         if lib == 'urllib':
             parsed_uri = urlparse(url)
@@ -30,6 +32,10 @@ class Crawler:
             return result
         elif lib == 'tldextract':
             return tldextract.extract(url).registered_domain
+
+    def can_fetch(self, robotstxt:bytes, url:str) -> bool:
+        self.parser.parse(robotstxt.decode("utf-8").splitlines())
+        return self.parser.can_fetch(self.config.user_agent, url)
 
     def _get_link_type(self, page_url: str, link: str) -> LinkType:
         base_url = self._get_base_url(page_url)
