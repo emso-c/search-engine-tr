@@ -64,14 +64,13 @@ async def url_frontier_scan_task(url_obj: URLFrontierTable, semaphore):
                     ip=ip,
                     port=port,
                     status=response.status_code,
-                    score=url_obj.score
                 )
-                ip_service.safe_add_url(obj)
-                print(f"✅ - {obj.domain} - ({ip}:{port}) - [{obj.status}] - {obj.score} - added to IP table session.")
+                is_added = ip_service.safe_add_url(obj)
+                if is_added:
+                    print(f"✅ - Append to IPs - {obj.domain} - ({ip}:{port}) - [{obj.status}] - added to IP table session.")
                 
                 url_frontier_service.delete_url(url_obj.url)
-                print(f"✅ - Cleared - {url_obj.url} removed from the URL frontier.")
-                
+                print(f"🧹 - Cleanup - {url_obj.url} removed from the URL frontier.")
         # TODO handle exceptions
         except (
             SQLAlchemyError,
@@ -95,16 +94,16 @@ async def url_frontier_scan_task(url_obj: URLFrontierTable, semaphore):
             print("CRITICAL ERROR:", e.__class__.__name__, e)
             url_frontier_service.db_adapter.get_session().rollback()
         finally:
-            print("Committing changes...")
-            ip_service.commit(verbose=False)
-            url_frontier_service.commit(verbose=False)
+            pass
+            # print("Committing changes...")
+            # ip_service.commit(verbose=False)
+            # url_frontier_service.commit(verbose=False)
 
 
-async def url_frontier_task_generator(semaphore, limit=50):
+async def url_frontier_task_generator(semaphore, limit=200):
     tasks = []
     urls = url_frontier_service.db_adapter.get_session() \
             .query(URLFrontierTable) \
-            .order_by(URLFrontierTable.score.desc()) \
             .limit(limit) \
             .all()
     for url_obj in urls:
@@ -120,18 +119,31 @@ db_adapter = load_db_adapter()
 ip_service = IPService(db_adapter)
 url_frontier_service = URLFrontierService(db_adapter)
 
+
+# get urls starting with:
+# url = "http://mi"
+# urls = url_frontier_service.db_adapter.get_session() \
+#     .query(URLFrontierTable) \
+#     .filter(URLFrontierTable.url.like(f"{url}%")) \
+#     .all()
+# if urls:
+#     print("Found URLs starting with:", url)
+#     for url_obj in urls:
+#         print(url_obj.url)
+# else:
+#     print("No URLs found starting with:", url)
+
 print("Initial URL Frontier size:", len(url_frontier_service.get_urls()))
 
-print("Starting URL Frontier scan...")
 
 stop_event = threading.Event()
 
-def main():
+async def main(stop_event):
     try:
         if stop_event.is_set():
             raise KeyboardInterrupt
         semaphore = asyncio.Semaphore(config.crawler.max_workers)
-        asyncio.run(url_frontier_task_generator(semaphore))
+        await url_frontier_task_generator(semaphore)
         print("URL Frontier scan complete")
     except Exception as e:
         print("CRITICAL ERROR:", e.__class__.__name__, e)
@@ -140,38 +152,35 @@ def main():
         print("Interrupted by user")
     finally:
         print("Committing changes...")
-        # ip_service.commit(verbose=False)
-        # url_frontier_service.commit(verbose=False)
-        print("Total URLs in URL Frontier:", len(url_frontier_service.get_urls()))
-        time.sleep(1)
+        ip_service.commit()
+        curr_count = ip_service.count()
+        ip_service.remove_duplicates()
+        print(f"Removed {curr_count - ip_service.count()} duplicate IPs.")
+        url_frontier_service.commit()
+        
+        print("Total URLs in URL Frontier:", url_frontier_service.count())
 
-def run():    
+
+async def run(stop_event):
     while True:
-        main()
-        print("Finished one iteration of URL Frontier scan. Waiting 30 seconds for data to be added to the URL Frontier...")
-        time.sleep(30)
+        if url_frontier_service.count():
+            print("Starting URL Frontier scan...")
+            await main(stop_event)
+            print("Finished scanning URL Frontier.")
+            await asyncio.sleep(1)
+            stop_event = threading.Event()
+            if url_frontier_service.count():
+                continue
+        print("URL Frontier is empty. Waiting for database to be populated...")
+        while not url_frontier_service.count():
+            await asyncio.sleep(30)
 
 if __name__ == "__main__":
-    run()
-
-    # parallelism = config.crawler.parallelism
-    # threads = []
-
-    # try:
-    #     for i in range(parallelism):
-    #         t = threading.Thread(target=main)
-    #         t.daemon = True
-    #         print(f"Starting thread {t.name} ({i+1}/{parallelism})")
-    #         t.start()
-    #         threads.append(t)
-
-    #     # Wait for interruption
-    #     while not stop_event.is_set():
-    #         time.sleep(1)
-
-    # except (KeyboardInterrupt, SystemExit):
-    #     print('Received keyboard interrupt, safely quitting threads. Wait for threads to finish...')
-    #     stop_event.set()
-
-    # for t in threads:
-    #     t.join()  # Wait for all threads to finish
+    while True:
+        try:
+            asyncio.run(run(stop_event))
+        except KeyboardInterrupt:
+            print("Interrupted by user.")
+            break
+        except:
+            pass

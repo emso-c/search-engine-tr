@@ -26,7 +26,7 @@ class Crawler:
     def _get_base_url(self, url: str, lib:str='urllib') -> str:
         if lib == 'urllib':
             parsed_uri = urlparse(url)
-            result = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri).strip()
+            result = '{uri.scheme}://{uri.netloc}'.format(uri=parsed_uri).strip()
             return result
         elif lib == 'tldextract':
             return tldextract.extract(url).registered_domain
@@ -61,18 +61,19 @@ class Crawler:
         try:
             content = response.body
             tree = html.fromstring(content)
-            links = tree.xpath("//a/@href")
+            tags = tree.xpath("//a")
+            links_and_anchor_texts = [(tag.get("href"), tag.text) for tag in tags]
         except Exception as e:
             print("There was an error parsing the html:", e)
             return result
         
         # check if link is external or internal
-        for link in links:
+        for link, anchor in links_and_anchor_texts:
             link = str(link)
             # TODO sanitize more here
             link_type = self._get_link_type(response.url, link)
             base_url = self._get_base_url(response.url)
-            result.append(Link(type=link_type, base_url=base_url, href=link))
+            result.append(Link(type=link_type, base_url=base_url, href=link, anchor_text=anchor))
 
         return result
 
@@ -127,7 +128,7 @@ class Crawler:
         text_content = re.sub(r'\s+', ' ', text_content).strip()
 
         # Truncate long documents
-        max_length = 10000
+        max_length = 100000
         if len(text_content) > max_length:
             text_content = text_content[:max_length]
 
@@ -177,11 +178,11 @@ class Crawler:
             print("Could not get sitemap with the following url:", base_url)
         return None
 
-    def get_document_frequency(self, response: UniformResponse) -> Optional[Counter]:
-        if not response.body:
+    def get_document_frequency(self, content: str) -> Optional[Counter]:
+        if not content:
             return None
         try:
-            text_content = self._preprocess_document(response.body)
+            text_content = self._preprocess_document(content)
         except Exception as e:
             print("There was an error parsing the html:", e)
             return None

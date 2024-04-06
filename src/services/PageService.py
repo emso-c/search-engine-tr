@@ -8,6 +8,7 @@ from src.services import BaseService
 class PageService(BaseService):
     def __init__(self, db_adapter):
         super().__init__(db_adapter)
+        self.model = PageTable
     
     def get_pages(self) -> List[PageTable]:
         """Get all pages from the database."""

@@ -8,7 +8,7 @@ from data.credentials import *
 class DBAdapter:
     def __init__(self, **engine_kwargs,):
         """Initialize the DBAdapter with a database URL."""
-        self.engine = create_engine(**engine_kwargs)
+        self.engine = create_engine(**engine_kwargs, pool_size=0, pool_pre_ping=True)
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
         self.persistent_session = None
@@ -32,6 +32,10 @@ class DBAdapter:
         """Delete the database."""
         print("WARNING: Deleting database!")
         Base.metadata.drop_all(self.engine)
+    
+    def get_connection_type(self):
+        """Return the connection type."""
+        return self.engine.url.get_dialect().name
     
     # def sync_with_remote(self, remote_db_url: str):
     #     """Sync the current database with a remote database."""
@@ -69,6 +73,7 @@ class DBAdapter:
 
 
 def load_db_adapter(echo=False):
+    return DBAdapter(url="sqlite:///data/ip.db", echo=echo)
     try:
         db_adapter = DBAdapter(
             url='mssql+pymssql://',
@@ -89,6 +94,6 @@ def load_db_adapter(echo=False):
         print("Connected to the remote database")
         return db_adapter
     except (ConnectionError, OperationalError):
-        raise ConnectionError("Could not connect to the remote database")
+        # raise ConnectionError("Could not connect to the remote database")
         print("Warning: Could not connect to the database, falling back to local sqlite database")
         return DBAdapter(url="sqlite:///data/ip.db", echo=echo)

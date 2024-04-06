@@ -10,8 +10,8 @@ from tqdm import tqdm
 
 
 from src.exceptions import InvalidResponse
-from src.models import Config, IPTable, PageTable
-from src.services import PageService, URLFrontierService
+from src.models import BacklinkTable, Config, IPTable, PageTable
+from src.services import BacklinkService, PageService, URLFrontierService
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
@@ -77,43 +77,32 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                 links = crawler.get_links(response)
                 if not links or not all([link.type == LinkType.INVALID for link in links]):
                     print("Discovering links...")
-                    link_score_increment_map = {}
-                    for link in links: link_score_increment_map[link.full_url] = False
+                    for link in links:
+                        # deleting backlinks from the source to the target to
+                        # prevent duplicates. It will be recreated later.
+                        backlink_service.delete_backlinks_by_source_to_target_url(page_url, link.full_url)
                     for link in links:
                         if not link.full_url:
                             continue
                         if link.type == LinkType.INTERNAL:
                             if not page_service.get_page(link.full_url):
                                 page_service.add_page(PageTable(page_url=link.full_url, last_crawled=None))
-                                print(f"✅ - 🔗 Internal Page Discover - ({link.full_url}) - added to the page session to be committed.")
+                                print(f"✅ - 🏠 Internal Page Discover - ({link.full_url}) - added to the page session to be committed.")
                             else:
-                                print(f"⚠️ - 🔗 Internal Page Discover - ({link.full_url}) - already exists in the database.")
+                                print(f"⚠️ - 🏠 Internal Page Discover - ({link.full_url}) - already exists in the database.")
                         elif link.type == LinkType.EXTERNAL:
                             target_ip = ip_service.get_ip_by_domain(link.full_url)
                             if not target_ip:
                                 # add new ip to URL frontier instead of directly adding to IP table
                                 # because we have not send a request to the IP to validate it yet.
                                 # we could, but it should not be the responsibility of the page scan task
-                                searched_url = url_frontier_service.get_url(link.full_url)
-                                if not searched_url:
+                                if not url_frontier_service.get_url(link.full_url):
                                     url_frontier_service.add_url(link.full_url)
                                     print(f"✅ - 🌐 External Page Discover: URL Frontier - ({link.full_url}) - added to the URL frontier.")
-                                else:
-                                    if not link_score_increment_map.get(link.full_url):
-                                        searched_url.score += 1
-                                        url_frontier_service.update_url(searched_url)
-                                        link_score_increment_map[link.full_url] = True
-                                        print(f"🔼 - 🌐 External Page Discover: URL Frontier Score Increment - incremented score of URL {link.full_url} ({searched_url.score}) from {page_url}.")
-                                    else:
-                                        print(f"⚠️ - 🌐 External Page Discover: URL Frontier Score Increment - already incremented score of URL {link.full_url}")
-                            elif target_ip:
-                                if not link_score_increment_map[link.full_url]:
-                                    target_ip.score += 1
-                                    ip_service.update_ip(target_ip)
-                                    link_score_increment_map[link.full_url] = True
-                                    print(f"🔼 - 🌐 External Page Discover: IP Score Increment - ({link.full_url}) - incremented score of IP {target_ip.ip} ({target_ip.score}) from {page_url}.")
-                                else:
-                                    print(f"⚠️ - 🌐 External Page Discover: IP Score Increment - ({link.full_url}) - already incremented score of IP {target_ip.ip}")
+                                else :
+                                    print(f"⚠️ - 🌐 External Page Discover: URL Frontier - ({link.full_url}) - already exists in the URL frontier.")
+                            backlink_service.add_backlink(BacklinkTable(source_url=page_url, target_url=link.full_url, anchor_text=link.anchor_text))
+                            print(f"✅ - 🔗 External Page Discover: Backlink - ({page_url}) -> ({link.full_url}) - added to the backlink session to be committed.")
                 else:
                     print("No valid links found.")
         # TODO handle exceptions
@@ -137,14 +126,20 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
             print("CRITICAL ERROR:", e.__class__.__name__, e)
 
 
-async def generate_page_scan_tasks(semaphore, limit=100):
+async def generate_page_scan_tasks(semaphore, limit=50):
     calculate_ratio = lambda x, y: x / (x + y)
 
+    _ip_query = ip_service.db_adapter.get_session().query(IPTable).filter_by(last_crawled=None)
+    _page_query = page_service.db_adapter.get_session().query(PageTable).filter_by(last_crawled=None)
     
     # TODO randomize to prevent stale / unreachable IPs from being scanned over and over
-    ips = ip_service.db_adapter.get_session().query(IPTable).filter_by(last_crawled=None) #.order_by(func.random())
-    pages = page_service.db_adapter.get_session().query(PageTable).filter_by(last_crawled=None) #.order_by(func.random())
-    
+    driver = db_adapter.engine.url.get_dialect().driver
+    if driver == "pysqlite":
+        ips = _ip_query.order_by(func.random())
+        pages = _page_query.order_by(func.random())
+    else:
+        raise NotImplementedError(f"Driver {driver} not supported")
+            
     if not ips.count() and not pages.count():
         print("No pages or IPs to scan.")
         return
@@ -179,6 +174,8 @@ db_adapter = load_db_adapter()
 ip_service = IPService(db_adapter)
 page_service = PageService(db_adapter)
 url_frontier_service = URLFrontierService(db_adapter)
+backlink_service = BacklinkService(db_adapter)
+
 
 print("Initial pages:", len(page_service.get_pages()))
 
@@ -186,53 +183,36 @@ print("Starting page scan...")
 
 stop_event = threading.Event()
 
-def run():  
-    def main():
+async def main():
+    try:
+        if stop_event.is_set():
+            raise KeyboardInterrupt
+        semaphore = asyncio.Semaphore(config.crawler.max_workers)
+        await generate_page_scan_tasks(semaphore)
+        semaphore.release()
+    except Exception as e:
+        print("CRITICAL ERROR:", e.__class__.__name__, e)
+        raise e
+    except KeyboardInterrupt:
+        print("Interrupted by user")
+    finally:
+        print("Committing changes...")
+        ip_service.commit(verbose=False)
+        page_service.commit(verbose=False)
+        url_frontier_service.commit(verbose=False)
+        backlink_service.commit(verbose=False)
+        print("Total pages:", len(page_service.get_pages()))
+
+async def run():
+    while True:
         try:
-            if stop_event.is_set():
-                raise KeyboardInterrupt
-            semaphore = asyncio.Semaphore(config.crawler.max_workers)
-            # weird fix: https://stackoverflow.com/questions/65682221/runtimeerror-exception-ignored-in-function-proactorbasepipetransport
-            asyncio.get_event_loop().run_until_complete((generate_page_scan_tasks(semaphore)))
-            semaphore.release()
-        except Exception as e:
-            print("CRITICAL ERROR:", e.__class__.__name__, e)
-            raise e
+            await main()
+            print("Finished scanning pages. Waiting for 30 seconds before starting again...")
+            await asyncio.sleep(30)
         except KeyboardInterrupt:
             print("Interrupted by user")
-        finally:
-            print("Committing changes...")
-            ip_service.commit(verbose=False)
-            page_service.commit(verbose=False)
-            url_frontier_service.commit(verbose=False)
-            print("Total pages:", len(page_service.get_pages()))
-            time.sleep(0.1)
-    
-    # parallelism = 1
-    # threads = []
-    # try:
-    #     for i in range(parallelism):
-    #         t = threading.Thread(target=main)
-    #         t.daemon = True
-    #         print(f"Starting thread {t.name} ({i+1}/{parallelism})")
-    #         t.start()
-    #         threads.append(t)
-
-    #     # Wait for interruption
-    #     while not stop_event.is_set():
-    #         time.sleep(1)
-
-    # except (KeyboardInterrupt, SystemExit):
-    #     print('Received keyboard interrupt, safely quitting threads. Wait for threads to finish...')
-    #     stop_event.set()
-
-    # for t in threads:
-    #     t.join()  # Wait for all threads to finish
-
-    while True:
-        main()
-        print("Finished scanning pages. Waiting for 30 seconds before starting again...")
-        time.sleep(30)
-
+            break
+        except:
+            pass
 if __name__ == "__main__":
-    run()
+    asyncio.run(run())

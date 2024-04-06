@@ -45,7 +45,7 @@ exit()
 # response = requests.get("http://201.194.192.66/doc/page/login.asp?_1712224784469")  # case study 1 (SPA, angular)
 # # response = requests.get("http://85.1.163.91/")
 # response = ResponseConverter.from_requests(response)
-# df = crawler.get_document_frequency(response)
+# df = crawler.get_document_frequency(response.body)
 # print(df.most_common(10))
 # exit()
 
@@ -69,7 +69,7 @@ def convert_indices_to_document(words: List[str], indices: List[DocumentIndexTab
                     break
             if frequency > 0:
                 word_frequencies.append(WordFrequency(word=word, frequency=frequency))
-        documents.append(Document(word_frequencies=word_frequencies, document_id=document_id))
+        documents.append(Document(word_frequencies=word_frequencies, url=document_id))
 
     return documents
 

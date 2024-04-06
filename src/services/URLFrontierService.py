@@ -6,7 +6,8 @@ from src.services import BaseService
 
 class URLFrontierService(BaseService):
     def __init__(self, db_adapter: DBAdapter):
-        self.db_adapter = db_adapter
+        super().__init__(db_adapter)
+        self.model = URLFrontierTable
     
     def get_urls(self) -> List[URLFrontierTable]:
         """Get all urls from the database."""
@@ -22,8 +23,6 @@ class URLFrontierService(BaseService):
         searched_url = session.query(URLFrontierTable).filter(URLFrontierTable.url == url).first()
         if not searched_url:
             session.add(URLFrontierTable(url=url))
-        else:
-            searched_url.score += 1.0  # TODO the increment value should be configurable
         return url
     
     def get_url(self, url: str) -> Optional[URLFrontierTable]:
@@ -45,10 +44,9 @@ class URLFrontierService(BaseService):
         if not updated_obj:
             raise ValueError(f"Cant find url with url: {new_obj.url} in the database.")
 
-        for attr in [attr for attr in dir(new_obj) if not attr.startswith("_")  and attr not in ["created_at", "updated_at", "score"]]:
+        for attr in [attr for attr in dir(new_obj) if not attr.startswith("_")  and attr not in ["created_at", "updated_at"]]:
             setattr(updated_obj, attr, getattr(new_obj, attr))
         setattr(updated_obj, "updated_at", datetime.now())
-        setattr(updated_obj, "score", new_obj.score)
 
         return updated_obj
     

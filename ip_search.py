@@ -55,19 +55,6 @@ async def ip_scan_task(ip, ports, semaphore):
                         print(f"❌ - {response.url} ({full_url}) [{response.status_code}] - {[fail.name for fail in fails]}")
                         raise InvalidResponse("Response failed validation")
 
-                    # meta_tags = crawler.get_meta_tags(response)
-                    # links = crawler.get_links(response)
-                    # document_frequency = crawler.get_document_frequency(response)
-                    
-                    # if document_frequency:
-                    #     for word, freq in document_frequency.items():
-                    #         document_index = DocumentIndex(
-                    #             document_id=response.url,
-                    #             word=word,
-                    #             frequency=freq
-                    #         )
-                    #         document_index_service.add_document_index(document_index)
-
                     try:
                         domain_name = socket.gethostbyaddr(ip)[0]
                         if not domain_name.startswith("http" if is_https else "https"):

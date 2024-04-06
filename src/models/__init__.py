@@ -17,7 +17,6 @@ class URLFrontierTable(Base, RepresentableTable):
     __tablename__ = "url_frontier"
 
     url = Column(String(255), primary_key=True)
-    score = Column(Float, default=1.0)
     created_at = Column(DateTime, default=datetime.now)
 
 class IPTable(Base, RepresentableTable):
@@ -58,6 +57,16 @@ class DocumentIndexTable(Base, RepresentableTable):
     frequency = Column(Integer)
 
 
+class BacklinkTable(Base, RepresentableTable):
+    __tablename__ = "backlinks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_url = Column(String(255), nullable=False)
+    target_url = Column(String(255), nullable=False)
+    anchor_text = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+
 ###########################################################################################################
 
 from enum import Enum
@@ -70,8 +79,14 @@ class WordFrequency(BaseModel):
     frequency: int
 
 class Document(BaseModel):
-    document_id: str|int
+    url: str|int
     word_frequencies: list[WordFrequency]
+
+class PageScore(BaseModel):
+    document: Document
+    score: float
+
+
 
 class FailEnum(Enum):
     INVALID_STATUS_CODE = 0  # 404, 500, etc.
@@ -120,6 +135,7 @@ class Link(BaseModel):
     type: LinkType
     base_url: str
     href: str
+    anchor_text: Union[str, None]
 
     @property
     def full_url(self):

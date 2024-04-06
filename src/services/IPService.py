@@ -1,6 +1,8 @@
 from typing import List, Optional
 from datetime import datetime
 
+from sqlalchemy import func
+
 from src.models import IPTable
 from src.services import BaseService
 
@@ -8,6 +10,7 @@ from src.services import BaseService
 class IPService(BaseService):
     def __init__(self, db_adapter):
         super().__init__(db_adapter)
+        self.model = IPTable
     
     def add_ip(self, ip_obj: IPTable) -> IPTable:
         """Add a new IP to the database."""
@@ -15,12 +18,14 @@ class IPService(BaseService):
         session.add(ip_obj)
         return ip_obj
 
-    def safe_add_url(self, ip_obj: IPTable) -> Optional[IPTable]:
+    def safe_add_url(self, ip_obj: IPTable) -> bool:
         """Add a new IP to the database if it does not already exist."""
         session = self.db_adapter.get_session()
         searched_ip = session.query(IPTable).filter(IPTable.ip == ip_obj.ip).first()
         if not searched_ip:
             session.add(ip_obj)
+            return True
+        return False
     
     def increment_ip_score(self, ip: str, score: float) -> IPTable:
         """Increment the score of an IP in the database."""
@@ -89,6 +94,15 @@ class IPService(BaseService):
         else:
             self.add_ip(new_ip_obj)
         return ip_obj
+    
+    def remove_duplicates(self, column=IPTable.domain) -> bool:
+        """Remove duplicate IPs from the database."""
+        session = self.db_adapter.get_session()
+        session.query(IPTable).filter(column.in_(
+            session.query(column).group_by(column).having(func.count(column) > 1)
+        )).delete(synchronize_session=False)
+        session.commit()
+        return True
     
     
     # def queue_operation(self, func:str, *args, **kwargs):
