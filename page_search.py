@@ -184,7 +184,7 @@ url_frontier_service = URLFrontierService(db_adapter)
 backlink_service = BacklinkService(db_adapter)
 
 
-print("Initial pages:", len(page_service.get_pages()))
+print("Initial pages:", page_service.count())
 
 print("Starting page scan...")
 
@@ -214,8 +214,11 @@ async def run():
     while True:
         try:
             await main()
-            print("Finished scanning pages. Waiting for 30 seconds before starting again...")
-            await asyncio.sleep(30)
+            print("Finished scanning pages...")
+            if page_service.count_unscanned_pages() == 0:
+                await asyncio.sleep(30)
+            else:
+                await asyncio.sleep(1)
         except KeyboardInterrupt:
             print("Interrupted by user")
             break
