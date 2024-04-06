@@ -9,6 +9,7 @@ class DBAdapter:
     def __init__(self, **engine_kwargs,):
         """Initialize the DBAdapter with a database URL."""
         self.engine = create_engine(**engine_kwargs)
+        Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
         self.persistent_session = None
     

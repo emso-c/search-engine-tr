@@ -23,9 +23,9 @@ class URLFrontierTable(Base, RepresentableTable):
 class IPTable(Base, RepresentableTable):
     __tablename__ = "ips"
 
-    ip = Column(String(15), primary_key=True)  # TODO some multiple domain names might have the same IP
-    domain = Column(String(255), nullable=True, primary_key=True)
-    port = Column(Integer)
+    domain = Column(String(255), primary_key=True)
+    ip = Column(String(15), nullable=True)  # TODO some multiple domain names might have the same IP
+    port = Column(Integer, nullable=True)
     status = Column(Integer)
     score = Column(Float, default=0.0, nullable=False)
     last_crawled = Column(DateTime, nullable=True, default=None)

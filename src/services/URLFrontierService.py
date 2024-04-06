@@ -52,10 +52,14 @@ class URLFrontierService(BaseService):
 
         return updated_obj
     
-    def delete_url(self, url: str) -> URLFrontierTable:
+    def delete_url(self, url_str: str) -> URLFrontierTable:
         """Delete a specific url from the database."""
+        if not url_str:
+            return None
         session = self.db_adapter.get_session()
-        url = session.query(URLFrontierTable).filter(URLFrontierTable.url == url).first()
+        url = session.query(URLFrontierTable).filter(URLFrontierTable.url == url_str).first()
+        if not url:
+            return None
         session.delete(url)
         return url
 

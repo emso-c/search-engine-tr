@@ -101,6 +101,7 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                                 else:
                                     if not link_score_increment_map.get(link.full_url):
                                         searched_url.score += 1
+                                        url_frontier_service.update_url(searched_url)
                                         link_score_increment_map[link.full_url] = True
                                         print(f"🔼 - 🌐 External Page Discover: URL Frontier Score Increment - incremented score of URL {link.full_url} ({searched_url.score}) from {page_url}.")
                                     else:
@@ -108,6 +109,7 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                             elif target_ip:
                                 if not link_score_increment_map[link.full_url]:
                                     target_ip.score += 1
+                                    ip_service.update_ip(target_ip)
                                     link_score_increment_map[link.full_url] = True
                                     print(f"🔼 - 🌐 External Page Discover: IP Score Increment - ({link.full_url}) - incremented score of IP {target_ip.ip} ({target_ip.score}) from {page_url}.")
                                 else:
@@ -205,18 +207,9 @@ def run():
             url_frontier_service.commit(verbose=False)
             print("Total pages:", len(page_service.get_pages()))
             time.sleep(0.1)
-
-    while True:
-        main()
-        print("Finished scanning pages. Waiting for 30 seconds before starting again...")
-        time.sleep(30)
-
-if __name__ == "__main__":
-    run()
-
-    # parallelism = config.crawler.parallelism
+    
+    # parallelism = 1
     # threads = []
-
     # try:
     #     for i in range(parallelism):
     #         t = threading.Thread(target=main)
@@ -235,3 +228,11 @@ if __name__ == "__main__":
 
     # for t in threads:
     #     t.join()  # Wait for all threads to finish
+
+    while True:
+        main()
+        print("Finished scanning pages. Waiting for 30 seconds before starting again...")
+        time.sleep(30)
+
+if __name__ == "__main__":
+    run()

@@ -73,11 +73,11 @@ async def ip_scan_task(ip, ports, semaphore):
                         if not domain_name.startswith("http" if is_https else "https"):
                             domain_name = f"http{'s' if is_https else ''}://{domain_name}"
                     except socket.herror:
-                        domain_name = response.url if response.url != ip else None
+                        domain_name = response.url if response.url != ip else f"http{'s' if is_https else ''}://{ip}"
 
                     obj = IPTable(
-                        ip=ip,
                         domain=domain_name,
+                        ip=ip,
                         port=port,
                         status=response.status_code,
                     )

@@ -15,6 +15,13 @@ class IPService(BaseService):
         session.add(ip_obj)
         return ip_obj
 
+    def safe_add_url(self, ip_obj: IPTable) -> Optional[IPTable]:
+        """Add a new IP to the database if it does not already exist."""
+        session = self.db_adapter.get_session()
+        searched_ip = session.query(IPTable).filter(IPTable.ip == ip_obj.ip).first()
+        if not searched_ip:
+            session.add(ip_obj)
+    
     def increment_ip_score(self, ip: str, score: float) -> IPTable:
         """Increment the score of an IP in the database."""
         session = self.db_adapter.get_session()

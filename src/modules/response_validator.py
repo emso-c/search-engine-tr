@@ -61,11 +61,12 @@ class ResponseValidator:
     def _check_content_type(
         self, response: UniformResponse
     ) -> Union[None, FailEnum]:
-        if response.headers.get("Content-Type") in [
-            "text/html",
-            "text/html; charset=utf-8",
-            "text/html; charset=iso-8859-9"
-        ]:
+        # if response.headers.get("Content-Type", '').lower() in [
+        #     "text/html",
+        #     "text/html; charset=utf-8",
+        #     "text/html; charset=iso-8859-9"
+        # ]:
+        if 'text/html' in response.headers.get("Content-Type", ''):
             return None
         return FailEnum.INVALID_CONTENT_TYPE
 
