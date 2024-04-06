@@ -58,7 +58,8 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
 
                 meta_tags = crawler.get_meta_tags(response)
                 favicon = crawler.get_favicon(response)
-                robots_txt = robotstxt # already fetched
+                # robots_txt = robotstxt # already fetched
+                robots_txt = crawler.get_robots_txt(page_url)
                 sitemap = crawler.get_sitemap(response)
                 last_crawled = datetime.now()
 
@@ -70,6 +71,7 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                     description=meta_tags.description,
                     body=response.content_bytes,
                     favicon=favicon,
+                    robotstxt=robots_txt,
                     robotstxt=robots_txt,
                     sitemap=sitemap,
                     last_crawled=last_crawled,
