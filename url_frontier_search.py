@@ -120,20 +120,7 @@ ip_service = IPService(db_adapter)
 url_frontier_service = URLFrontierService(db_adapter)
 
 
-# get urls starting with:
-# url = "http://mi"
-# urls = url_frontier_service.db_adapter.get_session() \
-#     .query(URLFrontierTable) \
-#     .filter(URLFrontierTable.url.like(f"{url}%")) \
-#     .all()
-# if urls:
-#     print("Found URLs starting with:", url)
-#     for url_obj in urls:
-#         print(url_obj.url)
-# else:
-#     print("No URLs found starting with:", url)
-
-print("Initial URL Frontier size:", len(url_frontier_service.get_urls()))
+print("Initial URL Frontier size:", url_frontier_service.count())
 
 
 stop_event = threading.Event()
