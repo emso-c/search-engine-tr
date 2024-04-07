@@ -76,6 +76,20 @@ class DocumentIndexService(BaseService):
         session.add(document_index_obj)
         return document_index_obj
     
+    def safe_add_document_index(self, obj: DocumentIndexTable, commit:bool=False) -> DocumentIndexTable:
+        """Add a new document index to the database if it does not already exist."""
+        session = self.db_adapter.get_session()
+        searched_document_index = (session.query(DocumentIndexTable)
+                                   .filter_by(
+                                       document_url=obj.document_url,
+                                       word=obj.word)
+                                   .first())
+        if not searched_document_index:
+            session.add(obj)
+            if commit:
+                session.commit()
+        return obj
+    
     def get_document_indices(self) -> List[DocumentIndexTable]:
         """Get all document indices from the database."""
         session = self.db_adapter.get_session()
@@ -113,6 +127,14 @@ class DocumentIndexService(BaseService):
         document_index_obj = session.query(DocumentIndexTable).filter_by(document_url=document_url, word=word).first()
         session.delete(document_index_obj)
         return document_index_obj
+    
+    def delete_document_indices_by_document_url(self, document_url: str) -> List[DocumentIndexTable]:
+        """Delete all document indices by document_url from the database."""
+        session = self.db_adapter.get_session()
+        document_index_objs = session.query(DocumentIndexTable).filter_by(document_url=document_url).all()
+        for document_index_obj in document_index_objs:
+            session.delete(document_index_obj)
+        return document_index_objs
     
     def delete_all_document_indices(self, commit) -> bool:
         """Delete all document indices from the database."""

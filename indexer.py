@@ -35,6 +35,9 @@ for page in page_service.get_pages():
     document_frequency = crawler.get_document_frequency(content)
     
     if document_frequency:
+        # clear the document index table for page_url to not nuke entire index because of a single page
+        # document_index_service.delete_document_indices_by_document_url(page.page_url)
+        
         for word, freq in document_frequency.items():
             document_index = DocumentIndexTable(
                 document_url=page.page_url,
@@ -42,7 +45,7 @@ for page in page_service.get_pages():
                 frequency=freq
             )
             document_index_service.add_document_index(document_index)
-        print(f"Indexed {page.page_url}:")
-
+        print(f"Indexed {page.page_url}")
+        document_index_service.commit()
+    
 print("Indexing complete. Total indices:", document_index_service.count())
-document_index_service.commit()
