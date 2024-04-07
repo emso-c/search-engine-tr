@@ -17,7 +17,7 @@ from src.services.DocumentIndexService import (
     convert_indices_to_document,
     calculate_inverse_document_frequency
 )
-
+from timeit import timeit
 
 def _get_base_url(url: str) -> str:
     parsed_uri = urlparse(url)
@@ -79,23 +79,33 @@ class PageRank:
         
         return final_scores
 
-    def get_pagerank(self, words, top=10) -> list[PageScore]:
+    def get_pageranks(self, words, top=10) -> tuple[list[PageScore], int]:
         idf_scores = self._get_tf_idf_scores(words)
         idf_scores = self._update_idf_scores_by_domain_authority(idf_scores)
 
         idf_scores.sort(key=lambda x: x.score, reverse=True)
-        return idf_scores[:top]
+        return idf_scores[:top], len(idf_scores)
 
 pr = PageRank()
 while True:
     words = input("Enter words to search (space separated): ")
-    if not words:
-        break
     words = crawler._preprocess_document(words)
     words = words.split(" ")
+    if not words:
+        print("Please provide a valid search query.")
+        break
+    
+    start = timeit()
     print("Searching for documents containing:", words)
-    ranks = pr.get_pagerank(words)
+    
+    ranks, doc_count = pr.get_pageranks(words, top=10)
+    
+    if not ranks:
+        print("No results found.")
+        continue
+
+    print(f"\nTop 10 relevant documents (searched {doc_count} documents in {timeit() - start:.3f}s):")
     for rank in ranks:
-        print(f"{rank.score}: {rank.document.url}")
+        print(f"{rank.document.url} (score: {rank.score:.3f})")
     print()
     print()
