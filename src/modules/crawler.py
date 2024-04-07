@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 from bs4 import BeautifulSoup
 from bs4.element import Comment
@@ -127,6 +128,17 @@ class Crawler:
         # Get text content
         text_content = soup.get_text(separator=' ', strip=True)
 
+
+        # lowercase
+        text_content = text_content.lower()
+        
+        # normalize every string to NFKD form
+        text_content = unicodedata.normalize("NFC", text_content)
+        
+        # back to utf-8
+        text_content = text_content.encode("utf-8").decode("utf-8")
+        
+        # dirty fix for turkish characters
         # Remove special characters & punctuation
         text_content = re.sub(r'[^\w\s]', ' ', text_content)
 
@@ -138,6 +150,19 @@ class Crawler:
         if len(text_content) > max_length:
             text_content = text_content[:max_length]
 
+        # another fix is word = Column(NVARCHAR(255, collation="Latin1_General_CS_AS"), primary_key=True)
+        # but that is not database agnostic
+        turkish_char_encode_map = {
+            "ı": "i",
+            "ğ": "g",
+            'ş': 's',
+        }
+        for turkish_char, encode in turkish_char_encode_map.items():
+            text_content = text_content.replace(turkish_char, encode)
+        
+        # remove duplicate words
+        text_content = " ".join(list(set(text_content.split(" "))))
+        
         return text_content
 
     def get_favicon(self, response: UniformResponse) -> Optional[bytes]:
