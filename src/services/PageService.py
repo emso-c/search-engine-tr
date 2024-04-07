@@ -1,6 +1,8 @@
 from typing import List, Optional
 from datetime import datetime
 
+from sqlalchemy import func
+
 from src.models import PageTable
 from src.services import BaseService
 
@@ -14,6 +16,15 @@ class PageService(BaseService):
         """Get all pages from the database."""
         session = self.db_adapter.get_session()
         return session.query(PageTable).all()
+    
+    def remove_duplicates(self, column=PageTable.page_url) -> bool:
+        """Remove duplicate IPs from the database."""
+        session = self.db_adapter.get_session()
+        session.query(self.model).filter(column.in_(
+            session.query(column).group_by(column).having(func.count(column) > 1)
+        )).delete(synchronize_session=False)
+        session.commit()
+        return True
     
     def count_unscanned_pages(self) -> int:
         """Count the number of unscanned pages."""
