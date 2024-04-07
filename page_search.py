@@ -144,6 +144,9 @@ async def generate_page_scan_tasks(semaphore, limit=50):
     if driver == "pysqlite":
         ips = _ip_query.order_by(func.random())
         pages = _page_query.order_by(func.random())
+    elif driver == "pymssql":
+        ips = _ip_query.order_by(func.newid())
+        pages = _page_query.order_by(func.newid())
     else:
         raise NotImplementedError(f"Driver {driver} not supported")
             
