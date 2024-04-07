@@ -9,21 +9,24 @@ class BaseService:
         Base.metadata.create_all(self.db_adapter.engine)
         self.model = None # Set this in the child class
 
-    def _commit(self):
+    def _commit(self) -> bool:
         session = self.db_adapter.get_session()        
-        retries = 6
-        wait = 10
+        max_retries = 5
+        retries = 5
+        wait = 3
         while retries > 0:
             try:
                 session.commit()
-                return
+                return True
+            # TODO check if database is locked
             except Exception as e:
                 print("Error committing changes, retrying:", e.__class__.__name__, e)
                 time.sleep(wait)
                 retries -= 1
         
-        print("Failed to commit changes after 5 retries, rolling back.")
+        print(f"Failed to commit changes after {max_retries} retries, rolling back.")
         session.rollback()
+        return False
     
     def count(self):
         """Return the number of items in the database."""
@@ -34,8 +37,7 @@ class BaseService:
 
         session = self.db_adapter.get_session()
         if not verbose:
-            self._commit()
-            return
+            return self._commit()
 
         print("Commiting Service:", self.__class__.__name__)
         if session.dirty or session.deleted or session.new:
@@ -43,6 +45,6 @@ class BaseService:
             print("New:", len(self.db_adapter.persistent_session.new))
             print("Updated:", len(self.db_adapter.persistent_session.dirty))
             print("Deleted:", len(self.db_adapter.persistent_session.deleted))
-            self._commit()
-        else:
-            print("No changes to commit.")
+            return self._commit()
+        print("No changes to commit.")
+        return False
