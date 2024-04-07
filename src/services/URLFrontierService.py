@@ -18,7 +18,6 @@ class URLFrontierService(BaseService):
         """Add a new url to the database if it does not already exist."""
         if not url:
             return None
-        print("Adding url to url frontier:", url)
         session = self.db_adapter.get_session()
         searched_url = session.query(URLFrontierTable).filter(URLFrontierTable.url == url).first()
         if not searched_url:
