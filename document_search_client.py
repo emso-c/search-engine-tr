@@ -104,7 +104,7 @@ while True:
         print("No results found.")
         continue
 
-    print(f"\nTop 10 relevant documents (searched {doc_count} documents in {timeit() - start:.3f}s):")
+    print(f"\nSearch results (searched {doc_count} documents in {timeit() - start:.3f}s):")
     for rank in ranks:
         print(f"{rank.document.url} (score: {rank.score:.3f})")
     print()
