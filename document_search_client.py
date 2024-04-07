@@ -27,6 +27,7 @@ def _get_base_url(url: str) -> str:
 with open("config.json") as f:
     config = Config(**json.load(f))
 
+crawler = Crawler(config.crawler)
 adapter = load_db_adapter()
 page_service = PageService(adapter)
 document_index_service = DocumentIndexService(adapter)
@@ -39,7 +40,7 @@ class PageRank:
     def _to_page_score(self, tuples: list[tuple[Document, float]]) -> list[PageScore]:
         return [PageScore(document=doc, score=score) for doc, score in tuples]
     
-    def _get_tf_idf_scores(self, words: str) -> list[PageScore]:
+    def _get_tf_idf_scores(self, words: list[str]) -> list[PageScore]:
         indices = document_index_service.get_document_indices_by_multiple_words(words)
         
         documents = convert_indices_to_document(words, indices)
@@ -85,12 +86,12 @@ class PageRank:
         idf_scores.sort(key=lambda x: x.score, reverse=True)
         return idf_scores[:top]
 
-
 pr = PageRank()
 while True:
     words = input("Enter words to search (space separated): ")
     if not words:
         break
+    words = crawler._preprocess_document(words)
     words = words.split(" ")
     print("Searching for documents containing:", words)
     ranks = pr.get_pagerank(words)
