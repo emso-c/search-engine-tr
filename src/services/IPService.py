@@ -21,7 +21,7 @@ class IPService(BaseService):
     def safe_add_url(self, ip_obj: IPTable) -> bool:
         """Add a new IP to the database if it does not already exist."""
         session = self.db_adapter.get_session()
-        searched_ip = session.query(IPTable).filter(IPTable.ip == ip_obj.ip).first()
+        searched_ip = session.query(IPTable).filter(IPTable.domain == ip_obj.domain).first()
         if not searched_ip:
             session.add(ip_obj)
             return True
