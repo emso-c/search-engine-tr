@@ -48,11 +48,13 @@ class PageTable(Base, RepresentableTable):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     last_crawled = Column(DateTime, nullable=True, default=None)
 
-
+# from sqlalchemy.dialects.mssql import NVARCHAR
+# __dialect__ = Base.metadata.bind.dialect.name
 class DocumentIndexTable(Base, RepresentableTable):
     __tablename__ = "document_index"
 
     document_url = Column(String(255), primary_key=True)  # pages.page_url
+    # word = Column(String(255), primary_key=True) if __dialect__ != "mssql" else Column(NVARCHAR(255, collation="Latin1_General_CS_AS"), primary_key=True)
     word = Column(String(255), primary_key=True)
     frequency = Column(Integer)
 
