@@ -78,3 +78,5 @@ for backlink in backlink_service.get_backlinks():
 
 print("Committing changes...")
 ip_service.commit(verbose=False)
+
+print("Backlink analysis complete. Total backlinks:", backlink_service.count())
