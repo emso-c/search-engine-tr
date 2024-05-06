@@ -133,7 +133,7 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
             print("❌ - 🕷️ CRITICAL ERROR:", e.__class__.__name__, e)
 
 
-async def generate_page_scan_tasks(semaphore, limit=50):
+async def generate_page_scan_tasks(semaphore, limit=10):
     calculate_ratio = lambda x, y: x / (x + y)
 
     _ip_query = ip_service.db_adapter.get_session().query(IPTable).filter_by(last_crawled=None)
@@ -197,7 +197,7 @@ async def main():
     try:
         if stop_event.is_set():
             raise KeyboardInterrupt
-        semaphore = asyncio.Semaphore(config.crawler.max_workers)
+        semaphore = asyncio.Semaphore(config.crawler.max_workers.page_search)
         await generate_page_scan_tasks(semaphore)
         semaphore.release()
     except Exception as e:

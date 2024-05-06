@@ -103,10 +103,14 @@ class FailReasonWeight(BaseModel):
     NOT_AVAILABLE: float
     NOT_TURKISH: float
 
+class MaxWorkerConfig(BaseModel):
+    ip_search: int
+    url_frontier: int
+    page_search: int
 
 class CrawlerConfig(BaseModel):
     parallelism: int  # number of programs running at the same time
-    max_workers: int  # number of threads in the pool
+    max_workers: MaxWorkerConfig  # number of threads in the pool
     chunk_size: int
     req_timeout: int
     user_agent: str

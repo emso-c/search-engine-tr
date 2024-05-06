@@ -7,7 +7,7 @@ from src.utils import UniformResponse
 from collections import Counter
 from typing import List, Optional
 from lxml import html
-import tldextract
+# import tldextract
 from urllib.parse import urlparse
 from urllib import robotparser
 import requests
@@ -31,8 +31,10 @@ class Crawler:
             parsed_uri = urlparse(url)
             result = '{uri.scheme}://{uri.netloc}'.format(uri=parsed_uri).strip()
             return result
-        elif lib == 'tldextract':
-            return tldextract.extract(url).registered_domain
+        # elif lib == 'tldextract':
+            # return tldextract.extract(url).registered_domain
+        else:
+            raise ValueError("lib not supported")
 
     def can_fetch(self, robotstxt:bytes, url:str) -> bool:
         self.parser.parse(robotstxt.decode("utf-8").splitlines())
@@ -127,7 +129,7 @@ class Crawler:
 
         # Get text content
         text_content = soup.get_text(separator=' ', strip=True)
-
+        # TODO fix bug: İZMİR -> [i, zm, ir] uppercase Turkish characters are not handled correctly
 
         # lowercase
         text_content = text_content.lower()

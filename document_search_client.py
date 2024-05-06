@@ -101,10 +101,13 @@ while True:
     ranks, doc_count = pr.get_pageranks(words, top=10)
     
     if not ranks:
-        print("No results found.")
+        print("No results found.\n\n")
         continue
 
-    print(f"\nSearch results (searched {doc_count} documents in {timeit() - start:.3f}s):")
+    end = timeit()
+    final = end-start
+    final = final if final >= 0 else 0
+    print(f"\nSearch results (searched {doc_count} documents in {final:.3f} seconds):")
     for rank in ranks:
         print(f"{rank.document.url} (score: {rank.score:.3f})")
     print()

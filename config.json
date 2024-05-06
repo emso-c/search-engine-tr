@@ -4,7 +4,11 @@
         "total_machines": 4
     },
     "crawler": {
-        "max_workers": 1024,
+        "max_workers": {
+            "ip_search": 1024,
+            "url_frontier": 1024,
+            "page_search": 1
+        },
         "chunk_size": 8,
         "shuffle_chunks": true,
         "parallelism": 2,

@@ -129,7 +129,7 @@ async def main(stop_event):
     try:
         if stop_event.is_set():
             raise KeyboardInterrupt
-        semaphore = asyncio.Semaphore(config.crawler.max_workers)
+        semaphore = asyncio.Semaphore(config.crawler.max_workers.url_frontier)
         await url_frontier_task_generator(semaphore)
         print("URL Frontier scan complete")
     except Exception as e:
