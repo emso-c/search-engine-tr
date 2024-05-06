@@ -3,7 +3,6 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import OperationalError
 from src.models import Base
 import pymssql
-from data.credentials import *
 
 class DBAdapter:
     def __init__(self, **engine_kwargs,):
@@ -40,6 +39,9 @@ class DBAdapter:
 
 def load_db_adapter(echo=False):
     try:
+        from data.credentials import (
+            user, password, server, port, database
+        )
         db_adapter = DBAdapter(
             url=f'mssql+pymssql://{user}:{password}@{server}:{port}/{database}?charset=utf8',
             echo=echo,
@@ -51,7 +53,7 @@ def load_db_adapter(echo=False):
         # DBAdapter(url="sqlite:///data/ip.db", echo=True).sync_with_remote(db_adapter.engine.url)
         print("Connected to the remote database")
         return db_adapter
-    except (ConnectionError, OperationalError):
+    except (ConnectionError, OperationalError, ModuleNotFoundError):
         # raise ConnectionError("Could not connect to the remote database")
         print("Warning: Could not connect to the database, falling back to local sqlite database")
         return DBAdapter(url="sqlite:///data/ip.db", echo=echo)

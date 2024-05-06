@@ -176,7 +176,7 @@ def process_chunks(chunks):
             if stop_event.is_set():
                 raise KeyboardInterrupt
             print("Processing chunk:", chunk)
-            semaphore = asyncio.Semaphore(config.crawler.max_workers)
+            semaphore = asyncio.Semaphore(config.crawler.max_workers.ip_search)
             asyncio.run(ip_range_scan_task(semaphore, chunk, ports=config.crawler.ports))
             print("IP scan complete for chunk")
         except Exception as e:
