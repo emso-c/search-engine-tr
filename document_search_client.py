@@ -29,7 +29,6 @@ with open("config.json") as f:
 
 crawler = Crawler(config.crawler)
 adapter = load_db_adapter()
-page_service = PageService(adapter)
 document_index_service = DocumentIndexService(adapter)
 ip_service = IPService(adapter)
 

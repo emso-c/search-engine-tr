@@ -160,7 +160,7 @@ db_adapter = load_db_adapter()
 
 ip_service = IPService(db_adapter)
 
-print("Initial ips:", len(ip_service.get_ips()))
+print("Initial ips:", ip_service.count())
 
 print("Generating IP chunks...")
 chunks = generate_ip_chunks(config)

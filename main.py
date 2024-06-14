@@ -6,10 +6,33 @@ import math
 import requests
 from src.database.adapter import DBAdapter
 from src.models import Config, DocumentIndexTable, IPTable, WordFrequency, Document
-from src.services import IPService, DocumentIndexService
+from src.services import IPService, DocumentIndexService, PageService
 from collections import Counter, defaultdict
 from src.modules.crawler import Crawler, CrawlerConfig
 from src.utils import ResponseConverter
+
+
+with open("config.json") as f:
+    config = Config(**json.load(f))
+
+db_adapter = DBAdapter(url="sqlite:///data/ip.db")
+crawler = Crawler(config.crawler)
+page_service = PageService(db_adapter)
+
+
+# for page in page_service.get_pages()[:10]:
+#     if page.robotstxt:
+#         print(page.page_url)
+# exit()
+url = "http://c2673.cloudnet.cloud"
+robotstxt_bytes:bytes = page_service.get_page(url).robotstxt
+
+from urllib.robotparser import RobotFileParser
+
+parser = RobotFileParser()
+parser.parse(robotstxt_bytes.decode("utf-8").splitlines())
+print(parser.can_fetch(crawler.config.user_agent, url))
+exit()
 
 
 db_adapter = DBAdapter(url="sqlite:///data/ip.db")
