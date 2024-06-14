@@ -57,7 +57,8 @@ class DocumentIndexTable(Base, RepresentableTable):
     # word = Column(String(255), primary_key=True) if __dialect__ != "mssql" else Column(NVARCHAR(255, collation="Latin1_General_CS_AS"), primary_key=True)
     word = Column(String(255), primary_key=True)
     frequency = Column(Integer)
-
+    location = Column(Integer, primary_key=True)
+    tag = Column(String(50))  # e.g., 'p', 'h1', 'title'
 
 class BacklinkTable(Base, RepresentableTable):
     __tablename__ = "backlinks"
@@ -79,6 +80,8 @@ from pydantic import BaseModel
 class WordFrequency(BaseModel):
     word: str
     frequency: int
+    location_index: int
+    tag: str
 
 class Document(BaseModel):
     url: str|int

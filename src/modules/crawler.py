@@ -4,7 +4,7 @@ import unicodedata
 from bs4 import BeautifulSoup
 from bs4.element import Comment
 from src.utils import UniformResponse
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import List, Optional
 from lxml import html
 # import tldextract
@@ -12,6 +12,8 @@ from urllib.parse import urlparse
 from urllib import robotparser
 import requests
 
+
+from src.utils import tag_weights
 from src.models import (
     CrawlerConfig,
     LinkType,
@@ -163,7 +165,7 @@ class Crawler:
             text_content = text_content.replace(turkish_char, encode)
         
         # remove duplicate words
-        text_content = " ".join(list(set(text_content.split(" "))))
+        # text_content = " ".join(list(set(text_content.split(" "))))
         
         return text_content
 
@@ -214,23 +216,35 @@ class Crawler:
             print("Could not get sitemap with the following url:", base_url)
         return None
 
-    def get_document_frequency(self, content: str) -> Optional[Counter]:
+    def get_document_frequency(self, content: str) -> tuple[Optional[Counter], Optional[dict]]:
         if not content:
-            return None
+            return None, None
         try:
-            text_content = self._preprocess_document(content)
+            soup = BeautifulSoup(content, 'html.parser')
         except Exception as e:
             print("There was an error parsing the html:", e)
-            return None
+            return None, None
 
         document_frequency = Counter()
-        unique_words = text_content.split()
+        word_details = defaultdict(list)  # Stores word with their locations and tags
+        
         # TODO do stemming and lemmatization
-        document_frequency.update(unique_words)
+
+        index = 0  # Initialize word index
+        for tag in soup.find_all(tag_weights.keys()):
+            for word in tag.get_text().split():
+                word = re.sub(r'[^\w\s]', '', word.lower())  # Clean word
+                if word:
+                    word_details[word].append((index, tag.name))
+                    index += 1
+
+        for word, details in word_details.items():
+            document_frequency[word] = len(details)
 
         if not document_frequency:
-            return None
-        return document_frequency
+            return None, None
+        
+        return document_frequency, word_details
 
     # def send_request(self, url: str) -> aiohttp.ClientResponse:
     #     # TODO send initial request with HEAD method to get headers

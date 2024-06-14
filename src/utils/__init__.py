@@ -8,6 +8,16 @@ import requests
 import ipaddress
 import pickle
 
+tag_weights = {
+    'title': 2.0,
+    'h1': 1.5,
+    'h2': 1.2,
+    'h3': 1.1,
+    'p': 1.0,
+    'a': 0.8,
+    'span': 0.5,
+}
+
 class UniformResponse(BaseModel):
     """
     A single source of truth for all kinds of responses from different libraries
