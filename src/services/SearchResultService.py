@@ -27,6 +27,28 @@ class SearchResultService(BaseService):
                 session.commit()
         return obj
     
+    def upsert_search_result(self, obj: SearchResultTable, commit: bool = False) -> SearchResultTable:
+        """Add a new search result to the database if it does not already exist, 
+        or update it if it does."""
+        session = self.db_adapter.get_session()
+        
+        existing_search_result = (session.query(SearchResultTable)
+                                .filter_by(query=obj.query)
+                                .first())
+        if existing_search_result:
+            for attr, value in vars(obj).items():
+                setattr(existing_search_result, attr, value)
+            result = existing_search_result
+        else:
+            session.add(obj)
+            result = obj
+        
+        if commit:
+            session.commit()
+        
+        return result
+
+    
     def get_search_results(self) -> List[SearchResultTable]:
         """Get all search results from the database."""
         session = self.db_adapter.get_session()

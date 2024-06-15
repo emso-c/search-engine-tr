@@ -11,7 +11,7 @@ from src.services.SearchResultService import SearchResultService
 
 
 def update_db_in_background(raw_query, ranks, doc_count):
-    search_result_service.safe_add_search_result(
+    search_result_service.upsert_search_result(
         SearchResultTable(
             query=raw_query,
             results=pickle.dumps((ranks, doc_count))
