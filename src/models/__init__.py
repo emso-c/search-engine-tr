@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import JSON, Column, DateTime, Float, Integer, LargeBinary, String, Text
+from sqlalchemy import JSON, Column, DateTime, Float, Index, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -23,13 +23,18 @@ class IPTable(Base, RepresentableTable):
     __tablename__ = "ips"
 
     domain = Column(String(255), primary_key=True)
-    ip = Column(String(15), nullable=True)  # TODO some multiple domain names might have the same IP
+    ip = Column(String(15), nullable=True)
     port = Column(Integer, nullable=True)
     status = Column(Integer)
     score = Column(Float, default=0.0, nullable=False)
     last_crawled = Column(DateTime, nullable=True, default=None)
     # created_at = Column(DateTime, default=datetime.now)
     # updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    __table_args__ = (
+        Index('idx_ip', 'ip'),
+        Index('idx_ip_last_crawled', 'last_crawled'),
+    )
 
 
 class PageTable(Base, RepresentableTable):
@@ -44,21 +49,28 @@ class PageTable(Base, RepresentableTable):
     favicon = Column(LargeBinary, nullable=True)
     robotstxt = Column(LargeBinary, nullable=True)
     sitemap = Column(LargeBinary, nullable=True)
-    # created_at = Column(DateTime, default=datetime.now)
-    # updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     last_crawled = Column(DateTime, nullable=True, default=None)
+    
+    __table_args__ = (
+        Index('idx_page_url', 'page_url'),
+        Index('idx_page_table_last_crawled', 'last_crawled'),
+    )
 
-# from sqlalchemy.dialects.mssql import NVARCHAR
-# __dialect__ = Base.metadata.bind.dialect.name
+
 class DocumentIndexTable(Base, RepresentableTable):
     __tablename__ = "document_index"
 
     document_url = Column(String(255), primary_key=True)  # pages.page_url
-    # word = Column(String(255), primary_key=True) if __dialect__ != "mssql" else Column(NVARCHAR(255, collation="Latin1_General_CS_AS"), primary_key=True)
     word = Column(String(255), primary_key=True)
     frequency = Column(Integer)
     location = Column(Integer, primary_key=True)
     tag = Column(String(50))  # e.g., 'p', 'h1', 'title'
+    
+    __table_args__ = (
+        Index('idx_document_url', 'document_url'),
+        Index('idx_word', 'word'),
+    )
+
 
 class BacklinkTable(Base, RepresentableTable):
     __tablename__ = "backlinks"
@@ -67,7 +79,10 @@ class BacklinkTable(Base, RepresentableTable):
     source_url = Column(String(255), nullable=False)
     target_url = Column(String(255), nullable=False)
     anchor_text = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.now)
+    
+    __table_args__ = (
+        Index('idx_source_url', 'source_url'),
+    )
 
 
 class SearchResultTable(Base, RepresentableTable):
@@ -76,6 +91,10 @@ class SearchResultTable(Base, RepresentableTable):
     id = Column(Integer, primary_key=True, autoincrement=True)
     query = Column(String(1000), nullable=False)
     results = Column(LargeBinary, nullable=False)
+    
+    __table_args__ = (
+        Index('idx_query', 'query'),
+    )
 
 ###########################################################################################################
 
