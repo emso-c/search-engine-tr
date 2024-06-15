@@ -60,7 +60,7 @@ async def url_frontier_scan_task(url_obj: URLFrontierTable, semaphore):
                     # TODO handle redirects
 
                 obj = IPTable(
-                    domain=base_url,
+                    domain=response.url,
                     ip=ip,
                     port=port,
                     status=response.status_code,
