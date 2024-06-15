@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, DateTime, Float, Integer, LargeBinary, String, Text
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -17,7 +17,7 @@ class URLFrontierTable(Base, RepresentableTable):
     __tablename__ = "url_frontier"
 
     url = Column(String(255), primary_key=True)
-    created_at = Column(DateTime, default=datetime.now)
+    # created_at = Column(DateTime, default=datetime.now)
 
 class IPTable(Base, RepresentableTable):
     __tablename__ = "ips"
@@ -28,8 +28,8 @@ class IPTable(Base, RepresentableTable):
     status = Column(Integer)
     score = Column(Float, default=0.0, nullable=False)
     last_crawled = Column(DateTime, nullable=True, default=None)
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    # created_at = Column(DateTime, default=datetime.now)
+    # updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 class PageTable(Base, RepresentableTable):
@@ -44,8 +44,8 @@ class PageTable(Base, RepresentableTable):
     favicon = Column(LargeBinary, nullable=True)
     robotstxt = Column(LargeBinary, nullable=True)
     sitemap = Column(LargeBinary, nullable=True)
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    # created_at = Column(DateTime, default=datetime.now)
+    # updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     last_crawled = Column(DateTime, nullable=True, default=None)
 
 # from sqlalchemy.dialects.mssql import NVARCHAR
@@ -69,6 +69,13 @@ class BacklinkTable(Base, RepresentableTable):
     anchor_text = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
 
+
+class SearchResultTable(Base, RepresentableTable):
+    __tablename__ = "search_results"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    query = Column(String(1000), nullable=False)
+    results = Column(LargeBinary, nullable=False)
 
 ###########################################################################################################
 
