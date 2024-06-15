@@ -14,6 +14,7 @@ command_map = [
 ]
 
 for command in command_map:
+    os.system(command["command"])
     command["schedule"].do(lambda: os.system(command["command"]))
     print(f"Added {command['command']} to scheduler")
     
