@@ -99,9 +99,18 @@ class PageRank:
     def get_pageranks(self, words, top=10) -> tuple[list[PageScore], int]:
         idf_scores = self._get_tf_idf_scores(words)
         
+        # Find the document with the highest frequency
+        most_frequent_document = max(idf_scores, key=lambda x: x.document.word_frequencies[0].frequency)
+        idf_scores.remove(most_frequent_document)
+
         idf_scores = self._update_idf_scores_by_domain_authority(idf_scores)
         idf_scores = self._update_idf_scores_by_tag_weights(idf_scores)
         idf_scores = self._update_idf_scores_by_word_proximity(idf_scores)
-
+        
+        # Sort the remaining documents by score in descending order
         idf_scores.sort(key=lambda x: x.score, reverse=True)
+        
+        # Insert the most frequent document at the top
+        idf_scores.insert(0, most_frequent_document)
+        
         return idf_scores[:top], len(idf_scores)
