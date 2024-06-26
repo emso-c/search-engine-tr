@@ -99,6 +99,9 @@ class PageRank:
     def get_pageranks(self, words, top=10) -> tuple[list[PageScore], int]:
         idf_scores = self._get_tf_idf_scores(words)
         
+        if not idf_scores:
+            return [], 0
+        
         # Find the document with the highest frequency
         most_frequent_document = max(idf_scores, key=lambda x: x.document.word_frequencies[0].frequency)
         idf_scores.remove(most_frequent_document)
