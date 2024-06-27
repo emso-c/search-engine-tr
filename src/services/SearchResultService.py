@@ -7,7 +7,7 @@ from src.services import BaseService
 class SearchResultService(BaseService):
     def __init__(self, db_adapter):
         super().__init__(db_adapter)
-        self.model = SearchResultTable
+        self.base_type = SearchResultTable
     
     def add_search_result(self, search_result_obj: SearchResultTable) -> SearchResultTable:
         """Add a new search result to the database."""

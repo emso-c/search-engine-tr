@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import Index, create_engine, MetaData, union_all
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import OperationalError
 from src.models import Base
@@ -11,6 +11,7 @@ class DBAdapter:
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine)
         self.persistent_session = None
+        self.class_registry = {}
     
     def __enter__(self) -> 'DBAdapter':
         return self
@@ -35,7 +36,30 @@ class DBAdapter:
     def get_connection_type(self):
         """Return the connection type."""
         return self.engine.url.get_dialect().name
-
+    
+    def _create_model(self, table_name, base_type):
+        # Dynamically create the class
+        new_class = type(table_name, (base_type, Base), {
+            "__tablename__": table_name,
+        })
+        
+        # Add indexes to the new class
+        for index_prefix, column_name in base_type.index_prefixes:
+            index_name = f"{index_prefix}_{table_name}"
+            idx = Index(index_name, getattr(new_class, column_name))
+            new_class.__table__.append_constraint(idx)
+        
+        # Create the table and add to registry
+        Base.metadata.create_all(self.engine)
+        self.class_registry[table_name] = new_class
+        
+        return new_class
+    
+    def get_model(self, table_name, base_type: type):
+        if table_name in self.class_registry:
+            return self.class_registry[table_name]
+        return self._create_model(table_name=table_name, base_type=base_type)
+    
 
 def load_db_adapter(echo=False):
     try:
@@ -56,4 +80,4 @@ def load_db_adapter(echo=False):
     except (ConnectionError, OperationalError, ModuleNotFoundError):
         # raise ConnectionError("Could not connect to the remote database")
         print("Warning: Could not connect to the database, falling back to local sqlite database")
-        return DBAdapter(url="sqlite:///data/ip.db", echo=echo)
+        return DBAdapter(url="sqlite:///data/search_engine.db", echo=echo)

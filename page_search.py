@@ -1,16 +1,13 @@
 from datetime import datetime
 import json
-import socket
+import random
 import sys
 import os
 import threading
-import time
-
-from tqdm import tqdm
 
 
 from src.exceptions import InvalidResponse
-from src.models import BacklinkTable, Config, IPTable, PageTable
+from src.models import BacklinkTable, Config, IPTableBase, PageTableBase
 from src.services import BacklinkService, PageService, URLFrontierService
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -18,21 +15,18 @@ import asyncio
 import aiohttp
 from src.utils import ResponseConverter, ping
 from lxml.etree import ParserError
-from src.database.adapter import DBAdapter, load_db_adapter
+from src.database.adapter import load_db_adapter
 from src.services.IPService import IPService
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.sql.expression import func
-from src.models import DocumentIndexTable
-from src.services.DocumentIndexService import DocumentIndexService
 from src.models import LinkType
 from src.modules.crawler import Crawler
 from src.modules.response_validator import ResponseValidator
 
 
-async def page_scan_task(obj: IPTable|PageTable, semaphore):
-    if isinstance(obj, IPTable):
+async def page_scan_task(obj: IPTableBase|PageTableBase, semaphore):
+    if obj.__class__.__name__.startswith(IPTableBase.__basename__):
         page_url = obj.domain or obj.ip
-    elif isinstance(obj, PageTable):
+    elif obj.__class__.__name__.startswith(PageTableBase.__basename__):
         page_url = obj.page_url
     else:
         raise ValueError("Invalid object type")
@@ -63,7 +57,9 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                 sitemap = crawler.get_sitemap(response)
                 last_crawled = datetime.now()
 
-                page_obj = PageTable(
+  
+                page_obj = page_service.generate_obj(
+                    "page_url",
                     page_url=response.url,
                     title=meta_tags.title,
                     status_code=response.status_code,
@@ -93,7 +89,21 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                             continue
                         if link.type == LinkType.INTERNAL:
                             if not page_service.get_page(link.full_url):
-                                page_service.add_page(PageTable(page_url=link.full_url, last_crawled=None))
+                                page_service.add_page(
+                                    page_service.generate_obj(
+                                        "page_url",
+                                        page_url=link.full_url,
+                                        title=None,
+                                        status_code=None,
+                                        keywords=None,
+                                        description=None,
+                                        body=None,
+                                        favicon=None,
+                                        robotstxt=None,
+                                        sitemap=None,
+                                        last_crawled=None,
+                                    )
+                                )
                                 print(f"✅ - ↩️ Internal Page Discover - ({link.full_url}) - added to the page session to be committed.")
                             else:
                                 print(f"⚠️ - ↩️ Internal Page Discover - ({link.full_url}) - already exists in the database.")
@@ -112,7 +122,6 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
                             print(f"✅ - 🔗 External Page Discover: Backlink - ({page_url}) -> ({link.full_url}) - added to the backlink session to be committed.")
                 else:
                     print("No valid links found.")
-        # TODO handle exceptions
         except (
             SQLAlchemyError,
             aiohttp.ClientConnectorError,
@@ -129,35 +138,40 @@ async def page_scan_task(obj: IPTable|PageTable, semaphore):
             pass
         except KeyboardInterrupt:
             raise KeyboardInterrupt
-        except Exception as e:
-            print("❌ - 🕷️ CRITICAL ERROR:", e.__class__.__name__, e)
+        # except Exception as e:
+        #     print("❌ - 🕷️ CRITICAL ERROR:", e.__class__.__name__, e)
 
 
 async def generate_page_scan_tasks(semaphore, limit=10):
     calculate_ratio = lambda x, y: x / (x + y)
 
-    _ip_query = ip_service.db_adapter.get_session().query(IPTable).filter_by(last_crawled=None)
-    _page_query = page_service.db_adapter.get_session().query(PageTable).filter_by(last_crawled=None)
+    ips = ip_service.get_unscanned_ips()
+    pages = page_service.get_unscanned_pages()
     
-    # TODO randomize to prevent stale / unreachable IPs from being scanned over and over
+    # randomize to prevent stale / unreachable IPs from being scanned over and over
     driver = db_adapter.engine.url.get_dialect().driver
     if driver == "pysqlite":
-        ips = _ip_query.order_by(func.random())
-        pages = _page_query.order_by(func.random())
+        random.shuffle(ips)
+        random.shuffle(pages)
+        # ips = _ip_query.order_by(func.random())
+        # pages = _page_query.order_by(func.random())
     elif driver == "pymssql":
-        ips = _ip_query.order_by(func.newid())
-        pages = _page_query.order_by(func.newid())
+        random.shuffle(ips)
+        random.shuffle(pages)
+        # ips = _ip_query.order_by(func.newid())
+        # pages = _page_query.order_by(func.newid())
     else:
         raise NotImplementedError(f"Driver {driver} not supported")
-            
-    if not ips.count() and not pages.count():
+
+    if not len(ips) and not len(pages):
         print("No pages or IPs to scan.")
         return
-    ip_limit = int(limit * calculate_ratio(ips.count(), pages.count()))
+    ip_limit = int(limit * calculate_ratio(len(ips), len(pages)))
     page_limit = limit - ip_limit
-    ips = ips.limit(ip_limit)
-    pages = pages.limit(page_limit)
-    print(f"Generating task with {ips.count()} ({ip_limit}) IPs and {pages.count()} ({page_limit}) pages.") 
+    # ips = ips.limit(ip_limit)
+    ips = ips[:ip_limit]
+    pages = pages[:page_limit]
+    print(f"Generating task with {len(ips)} ({ip_limit}) IPs and {len(pages)} ({page_limit}) pages.")
     tasks = []
     if ip_limit:
         for ip_obj in ips:
@@ -169,7 +183,6 @@ async def generate_page_scan_tasks(semaphore, limit=10):
             task_name = f"Page-Task-{page_obj.page_url}"
             print("Generating task:", task_name)
             tasks.append(page_scan_task(page_obj, semaphore))
-    # shuffle here?
     await asyncio.gather(*tasks)
 
 

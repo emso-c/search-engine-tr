@@ -7,7 +7,7 @@ from src.services import BaseService
 class BacklinkService(BaseService):
     def __init__(self, db_adapter: DBAdapter):
         super().__init__(db_adapter)
-        self.model = BacklinkTable
+        self.base_type = BacklinkTable
     
     def add_backlink(self, backlink_obj: BacklinkTable) -> BacklinkTable:
         """Add a new backlink to the database."""

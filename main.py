@@ -5,13 +5,78 @@ import math
 
 import requests
 from src.database.adapter import DBAdapter
-from src.models import Config, DocumentIndexTable, IPTable, WordFrequency, Document
+from src.models import Base, Config, DocumentIndexTable, IPTable, WordFrequency, Document
 from src.services import IPService, DocumentIndexService, PageService
 from collections import Counter, defaultdict
 from src.modules.crawler import Crawler, CrawlerConfig
 from src.utils import ResponseConverter
 
+from sqlalchemy import Column, Integer, String, create_engine, inspect, ARRAY
+from sqlalchemy.orm import sessionmaker
 
+
+from sqlalchemy.orm import declarative_base
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "user"
+
+    email = Column(String(50), primary_key=True)
+    profiles = Column(ARRAY(String, dimensions=1), default=[])
+
+engine = create_engine('sqlite:///data/test.db')
+Base.metadata.drop_all(engine)
+Base.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)
+session = Session()
+
+# Example usage: Adding a new user and profiles
+new_user = User(
+    email="test@example.com",
+    profiles=["profile1", "profile2"]
+)
+session.add(new_user)
+session.commit()
+session.close()
+
+
+
+# session = Session()
+
+# new_profile = "profile3"
+# new_user.profiles.append(new_profile)
+# session.commit()
+
+# session.close()
+
+
+exit()
+# Create an engine and connect to your database
+engine = create_engine('sqlite:///data/ip.db')  # Replace with your actual database URI
+
+# Reflect the existing database
+Base.metadata.create_all(engine)  # Ensure tables are created if they don't exist
+
+# Use inspect to get the indexes
+inspector = inspect(engine)
+
+# Function to print indexes for a given table
+def print_indexes(table_name):
+    indexes = inspector.get_indexes(table_name)
+    print(f"Indexes for table {table_name}:")
+    for index in indexes:
+        print(f"  - Name: {index['name']}, Columns: {index['column_names']}")
+
+# Check indexes for each table
+print_indexes('ips')
+print_indexes('pages')
+print_indexes('document_index')
+print_indexes('backlinks')
+print_indexes('search_results')
+
+
+
+exit()
 with open("config.json") as f:
     config = Config(**json.load(f))
 

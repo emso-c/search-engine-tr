@@ -7,7 +7,7 @@ from src.services import BaseService
 class URLFrontierService(BaseService):
     def __init__(self, db_adapter: DBAdapter):
         super().__init__(db_adapter)
-        self.model = URLFrontierTable
+        self.base_type = URLFrontierTable
     
     def get_urls(self) -> List[URLFrontierTable]:
         """Get all urls from the database."""

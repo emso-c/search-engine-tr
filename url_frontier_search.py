@@ -1,14 +1,12 @@
 import json
-import random
 import socket
 import sys
 import os
 import threading
-import time
 
 
 from src.exceptions import InvalidResponse
-from src.models import Config, IPTable, URLFrontierTable
+from src.models import Config, URLFrontierTable
 from src.services import URLFrontierService
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -27,7 +25,7 @@ def _resolve_domain(domain):
     return urlparse(domain).hostname
 
 def get_base_url(url):
-    "example https://www.google.com/products/1 -> https://www.google.com"
+    """example https://www.google.com/products/1 -> https://www.google.com"""
     parsed = urlparse(url)
     return parsed.scheme + "://" + parsed.netloc
 
@@ -59,7 +57,8 @@ async def url_frontier_scan_task(url_obj: URLFrontierTable, semaphore):
                         f.write(f"{base_url} -> {response.url}\n")
                     # TODO handle redirects
 
-                obj = IPTable(
+                obj = ip_service.generate_obj(
+                    "domain",
                     domain=response.url,
                     ip=ip,
                     port=port,
@@ -71,7 +70,6 @@ async def url_frontier_scan_task(url_obj: URLFrontierTable, semaphore):
                 
                 url_frontier_service.delete_url(url_obj.url)
                 print(f"🧹 - Cleanup - {url_obj.url} removed from the URL frontier.")
-        # TODO handle exceptions
         except (
             SQLAlchemyError,
             aiohttp.ClientConnectorError,

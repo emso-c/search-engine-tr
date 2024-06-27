@@ -1,8 +1,8 @@
 import json
 from src.database.adapter import load_db_adapter
-from src.models import Config, DocumentIndexTable
+from src.models import Config
 from src.modules.crawler import Crawler
-from src.services import IPService, PageService
+from src.services import PageService
 from src.services.DocumentIndexService import DocumentIndexService
 
 
@@ -35,7 +35,8 @@ for page in page_service.get_pages():
 
         for word, freq in document_frequency.items():
             for location, tag in word_details[word]:
-                document_index = DocumentIndexTable(
+                document_index = document_index_service.generate_obj(
+                    "word",
                     document_url=page.page_url,
                     word=word,
                     frequency=freq,

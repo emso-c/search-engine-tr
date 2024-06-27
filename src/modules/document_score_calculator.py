@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import List
 import math
-from src.models import DocumentIndexTable, WordFrequency, Document
+from src.models import DocumentIndexTableBase, WordFrequency, Document
 
 class DocumentScoreCalculator:
     @staticmethod
@@ -10,7 +10,7 @@ class DocumentScoreCalculator:
         return [word.lower().strip() for word in words if word.isalnum()]
 
     @staticmethod
-    def convert_indices_to_document(words: List[str], indices: List[DocumentIndexTable]) -> List[Document]:
+    def convert_indices_to_document(words: List[str], indices: List[DocumentIndexTableBase]) -> List[Document]:
         """Convert a list of document indices to a list of Document objects."""
         words = DocumentScoreCalculator._preprocess_words(words)
         document_map = defaultdict(list)

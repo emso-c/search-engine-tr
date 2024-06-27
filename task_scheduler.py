@@ -5,11 +5,11 @@ import time
 command_map = [
     {
         "command": "python indexer.py",
-        "schedule": schedule.every(30).minutes
+        "schedule": schedule.every(7).minutes
     },
     {
         "command": "python backlink_analyser.py",
-        "schedule": schedule.every(20).minutes
+        "schedule": schedule.every(10).minutes
     }
 ]
 

@@ -1,16 +1,8 @@
 import json
-import random
-import socket
-import sys
-import os
-from threading import Thread, Event
-import threading
-import time
 from urllib.parse import urlparse
 
 from src.database.adapter import load_db_adapter
-from src.models import Config, BacklinkTable, IPTable, Link, PageTable
-from src.modules.crawler import Crawler
+from src.models import Config
 from src.services import BacklinkService, IPService
 
 
@@ -66,10 +58,11 @@ for backlink in backlink_service.get_backlinks():
 
     base_source = _get_base_url(backlink.source_url)
     base_target = _get_base_url(backlink.target_url)
+    # print(base_source, base_target)
     
     ip_target_obj = ip_service.get_ip_by_domain(base_target)
     if not ip_target_obj:
-        # print("No IP found for target:", base_target)
+        print("No IP found for target:", base_target)
         continue
     
     ip_target_obj.score += 1

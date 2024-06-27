@@ -1,4 +1,5 @@
 from datetime import datetime
+import string
 from sqlalchemy import JSON, Column, DateTime, Float, Index, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import declarative_base
 
@@ -19,8 +20,14 @@ class URLFrontierTable(Base, RepresentableTable):
     url = Column(String(255), primary_key=True)
     # created_at = Column(DateTime, default=datetime.now)
 
-class IPTable(Base, RepresentableTable):
-    __tablename__ = "ips"
+
+class IPTableBase(object):
+    __basename__ = "ip_table"
+    partition_keys = list(string.ascii_lowercase)
+    index_prefixes = [
+        ("idx_ip", "ip"),
+        ("idx_ip_last_crawled", "last_crawled")
+    ]
 
     domain = Column(String(255), primary_key=True)
     ip = Column(String(15), nullable=True)
@@ -28,17 +35,31 @@ class IPTable(Base, RepresentableTable):
     status = Column(Integer)
     score = Column(Float, default=0.0, nullable=False)
     last_crawled = Column(DateTime, nullable=True, default=None)
-    # created_at = Column(DateTime, default=datetime.now)
-    # updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
-    __table_args__ = (
-        Index('idx_ip', 'ip'),
-        Index('idx_ip_last_crawled', 'last_crawled'),
-    )
+    @staticmethod
+    def _get_partition_key(url: str):
+        if url.startswith("http"):
+            url = url.split("//")[1]
+        elif url.startswith("www."):
+            url = url[4:]
+        key = url.lower()[0]
+        if key not in IPTableBase.partition_keys:
+            key = "default"
+        return key
+
+    @staticmethod
+    def get_partition_tablename(url):
+        key = IPTableBase._get_partition_key(url)
+        return f"{IPTableBase.__basename__}_{key}"
 
 
-class PageTable(Base, RepresentableTable):
-    __tablename__ = "pages"
+class PageTableBase(object):
+    __basename__ = "page_table"
+    partition_keys = list(string.ascii_lowercase)
+    index_prefixes = [
+        ("idx_page_url", "page_url"),
+        ("idx_page_table_last_crawled", "last_crawled")
+    ]
     
     page_url = Column(String(255), primary_key=True)
     status_code = Column(Integer)
@@ -50,15 +71,32 @@ class PageTable(Base, RepresentableTable):
     robotstxt = Column(LargeBinary, nullable=True)
     sitemap = Column(LargeBinary, nullable=True)
     last_crawled = Column(DateTime, nullable=True, default=None)
-    
-    __table_args__ = (
-        Index('idx_page_url', 'page_url'),
-        Index('idx_page_table_last_crawled', 'last_crawled'),
-    )
+
+    @staticmethod
+    def _get_partition_key(url: str):
+        if url.startswith("http"):
+            url = url.split("//")[1]
+        elif url.startswith("www."):
+            url = url[4:]
+        key = url.lower()[0]
+        if key not in PageTableBase.partition_keys:
+            key = "default"
+        return key
+
+    @staticmethod
+    def get_partition_tablename(url):
+        key = PageTableBase._get_partition_key(url)
+        return f"{PageTableBase.__basename__}_{key}"
 
 
-class DocumentIndexTable(Base, RepresentableTable):
-    __tablename__ = "document_index"
+
+class DocumentIndexTableBase(object):
+    __basename__ = "document_index"
+    partition_keys = list(string.ascii_lowercase)
+    index_prefixes = [
+        ("idx_document_url", "document_url"),
+        ("idx_word", "word")
+    ]
 
     document_url = Column(String(255), primary_key=True)  # pages.page_url
     word = Column(String(255), primary_key=True)
@@ -66,11 +104,18 @@ class DocumentIndexTable(Base, RepresentableTable):
     location = Column(Integer, primary_key=True)
     tag = Column(String(50))  # e.g., 'p', 'h1', 'title'
     
-    __table_args__ = (
-        Index('idx_document_url', 'document_url'),
-        Index('idx_word', 'word'),
-    )
+    @staticmethod
+    def _get_partition_key(word: str):
+        key = word.lower()[0]
+        if key not in DocumentIndexTableBase.partition_keys:
+            key = "default"
+        return key
 
+    @staticmethod
+    def get_partition_tablename(url):
+        key = DocumentIndexTableBase._get_partition_key(url)
+        return f"{DocumentIndexTableBase.__basename__}_{key}"
+    
 
 class BacklinkTable(Base, RepresentableTable):
     __tablename__ = "backlinks"
@@ -111,11 +156,13 @@ class WordFrequency(BaseModel):
 
 class Document(BaseModel):
     url: str|int
+    title: str = None
+    description: str = None
     word_frequencies: list[WordFrequency]
 
 class PageScore(BaseModel):
     document: Document
-    score: float
+    idf_score: float
 
 
 

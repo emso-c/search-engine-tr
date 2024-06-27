@@ -75,6 +75,7 @@ def ping(host):
 
 
 def get_reserved_ips() -> set[ipaddress.IPv4Address]:
+    return set()
     _reserved_blocks = [
         (ipaddress.IPv4Network('0.0.0.0/8'),),
         (ipaddress.IPv4Network('10.0.0.0/8'),),

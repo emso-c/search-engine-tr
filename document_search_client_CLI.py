@@ -2,7 +2,6 @@ import json
 import pickle
 import threading
 
-from src.database.adapter import load_db_adapter
 from src.models import Config, SearchResultTable
 from src.modules.crawler import Crawler
 from src.modules.pagerank import PageRank, adapter
@@ -10,7 +9,10 @@ from timeit import default_timer as timer
 from src.services.SearchResultService import SearchResultService
 
 
-def update_db_in_background(raw_query, ranks, doc_count):
+def update_search_results(raw_query, ranks, doc_count, cache_hit):
+    if cache_hit:
+        query = crawler._preprocess_document(raw_query).split(" ")
+        ranks, doc_count = pr.get_pageranks(query, top=10)
     search_result_service.upsert_search_result(
         SearchResultTable(
             query=raw_query,
@@ -40,10 +42,14 @@ while True:
     start = timer()
     print("Searching for documents containing:", query)
     
-    sr_service_results = search_result_service.get_search_result_by_query(raw_query)
-    if sr_service_results:
+    cache_hit = False
+    try:
+        sr_service_results = search_result_service.get_search_result_by_query(raw_query)
+        if not sr_service_results:
+            raise Exception("Cache miss")
+        cache_hit = True
         ranks, doc_count = pickle.loads(sr_service_results.results)
-    else:
+    except:
         ranks, doc_count = pr.get_pageranks(query, top=10)
     
     if not ranks:
@@ -57,13 +63,13 @@ while True:
     for i, rank in enumerate(ranks):
         if i == 0:
             print("[pinned]->", end=" ")
-        print(f"{rank.document.url} (score: {rank.score:.3f})")
+        print(f"{rank.document.url} (score: {rank.idf_score:.3f})")
     
     print()
     print()
     
-    if sr_service_results:
-        ranks, doc_count = pr.get_pageranks(query, top=10)
-    db_update_thread = threading.Thread(target=update_db_in_background, args=(raw_query, ranks, doc_count))
-    db_update_thread.start()
+    threading.Thread(
+        target=update_search_results,
+        args=(raw_query, ranks, doc_count, cache_hit)
+    ).start()
 

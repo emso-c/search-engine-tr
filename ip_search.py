@@ -3,7 +3,6 @@ import random
 import socket
 import sys
 import os
-from threading import Thread, Event
 import threading
 import time
 
@@ -11,7 +10,7 @@ from tqdm import tqdm
 import ipaddress
 
 from src.exceptions import InvalidResponse
-from src.models import Config, IPTable
+from src.models import Config
 from src.modules.crawler import Crawler
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -68,7 +67,8 @@ async def ip_scan_task(ip, ports, semaphore):
                     except socket.herror:
                         domain_name = response.url if response.url != ip else f"http{'s' if is_https else ''}://{ip}"
 
-                    obj = IPTable(
+                    obj = ip_service.generate_obj(
+                        "domain",
                         domain=domain_name,
                         ip=ip,
                         port=port,
@@ -160,7 +160,15 @@ db_adapter = load_db_adapter()
 
 ip_service = IPService(db_adapter)
 
-print("Initial ips:", ip_service.count())
+obj = ip_service.generate_obj(
+    "domain",
+    domain="test",
+    ip="1.1.1.1",
+    port=80,
+    status=200,
+)
+
+print("Initial ips:", len(ip_service.get_all()))
 
 print("Generating IP chunks...")
 chunks = generate_ip_chunks(config)
