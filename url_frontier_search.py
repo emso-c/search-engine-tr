@@ -12,7 +12,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 import aiohttp
-from src.utils import ResponseConverter, ping
+from src.modules.response_converter import ResponseConverter
+from src.utils import ping
 from lxml.etree import ParserError
 from src.database.adapter import load_db_adapter
 from src.services.IPService import IPService

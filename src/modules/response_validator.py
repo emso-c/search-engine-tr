@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 from lxml import html
 
 from src.models import FailEnum
-from src.utils import UniformResponse
+from src.models import UniformResponse
 
 accepted_status_codes = [
     HTTPStatus.OK,

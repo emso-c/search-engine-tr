@@ -3,7 +3,7 @@ import unicodedata
 
 from bs4 import BeautifulSoup
 from bs4.element import Comment
-from src.utils import UniformResponse
+from src.models import UniformResponse
 from collections import Counter, defaultdict
 from typing import List, Optional
 from lxml import html
