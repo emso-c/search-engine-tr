@@ -20,7 +20,6 @@ class BaseService:
         while retries > 0:
             try:
                 session.commit()
-                print("Changes commited succesfully.")
                 return True
             except (saOperationalError, slOperationalError):
                 print("Database locked, waiting...")
@@ -45,16 +44,9 @@ class BaseService:
     def commit(self, verbose=False):
         """Commit the current transaction."""
 
-        session = self.db_adapter.get_session()
         if not verbose:
-            return self._commit()
+            self._commit()
+            return
 
         print("Commiting Service:", self.__class__.__name__)
-        if session.dirty or session.deleted or session.new:
-            print("Changes to be committed:")
-            print("New:", len(self.db_adapter.persistent_session.new))
-            print("Updated:", len(self.db_adapter.persistent_session.dirty))
-            print("Deleted:", len(self.db_adapter.persistent_session.deleted))
-            return self._commit()
-        print("No changes to commit.")
-        return False
+        self._commit()
