@@ -80,7 +80,7 @@ async def page_scan_task(obj: IPTableBase|PageTableBase, semaphore):
                 
                 links = crawler.get_links(response)
                 if not links or not all([link.type == LinkType.INVALID for link in links]):
-                    print("Discovering links...")
+                    print(f"Discovering {len(links)} links...")
                     for link in links:
                         # deleting backlinks from the source to the target to
                         # prevent duplicates. It will be recreated later.
