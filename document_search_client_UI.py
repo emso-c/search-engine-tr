@@ -48,7 +48,7 @@ def display_results(ranks: list[PageScore], doc_count: int, final_time):
         bd = 3 if i == 0 else 1
         result_frame = tk.Frame(results_container, bd=bd, relief="solid", padx=10, pady=5)
         result_frame.pack(fill="x", pady=5)
-        result_frame.bind("<Button-1>", lambda e, url=rank.document.url: open_url(url))
+        # result_frame.bind("<Button-1>", lambda e, url=rank.document.url: open_url(url))
 
         title = rank.document.title or rank.document.url
         if title and len(title) > MAX_TITLE_LEN:
@@ -61,6 +61,7 @@ def display_results(ranks: list[PageScore], doc_count: int, final_time):
             url = url[:MAX_LINK_LEN] + "..."
         result_url = tk.Label(result_frame, text=url, fg="blue", cursor="hand2")
         result_url.pack(anchor="w")
+        result_url.bind("<Button-1>", lambda e, url=rank.document.url: open_url(url))
 
         description = rank.document.description
         # description = str(rank.idf_score)
