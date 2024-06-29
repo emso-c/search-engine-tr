@@ -10,7 +10,7 @@ class WordFrequency(BaseModel):
     tag: str
 
 class Document(BaseModel):
-    url: str|int
+    url: str
     title: str = None
     description: str = None
     word_frequencies: list[WordFrequency]

@@ -37,9 +37,10 @@ def clear_results():
     for widget in results_container.winfo_children():
         widget.destroy()
 
+def on_mouse_wheel(event):
+    canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
 def display_results(ranks: list[PageScore], doc_count: int, final_time):
-    clear_results()
-    
     result_summary = tk.Label(results_container, text=f"{doc_count} doküman {final_time:.3f} saniyede tarandı", font=("Helvetica", 12, "italic"))
     result_summary.pack(pady=5)
     
@@ -73,6 +74,8 @@ def open_url(url):
     webbrowser.open(url)
 
 def search(lucky: bool = False):
+    clear_results()
+    
     raw_query = query_entry.get().encode('utf-8')
     raw_query_processed = crawler._preprocess_document(raw_query)
     query = raw_query_processed.split(" ")
@@ -95,19 +98,22 @@ def search(lucky: bool = False):
     except:
         ranks, doc_count = pr.get_pageranks(query, top=10)
 
-    # ranks, doc_count = pr.get_pageranks(query, top=10)
     end = timer()
     final_time = end - start
     final_time = final_time if final_time >= 0 else 0
-    
+
 
     if not ranks:
         results_label.config(text="Sonuç bulunamadı.\n\n")
         return
 
-    if lucky:
-        open_url(ranks[0].document.url)
-    display_results(ranks, doc_count, final_time)
+    try:
+        if lucky:
+            open_url(ranks[0].document.url)
+        display_results(ranks, doc_count, final_time)
+    except Exception as e:
+        print("ERROR:", e.__class__.__name__, e)
+        results_label.config(text="Sonuçları gösterirken bir hata meydana geldi, lütfen tekrar deneyiniz.\n\n")
 
     threading.Thread(
         target=update_search_results,
@@ -130,7 +136,6 @@ FONT_NORMAL = ("Helvetica", 12)
 PADX = 10
 PADY = 5
 
-# Setup the UI
 root = tk.Tk()
 root.title("Arama Motoru")
 root.geometry("800x500")
@@ -172,10 +177,9 @@ scrollable_frame.bind(
 
 canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
 canvas.configure(yscrollcommand=scrollbar.set)
-
-# Pack the canvas and scrollbar
 canvas.pack(side="left", fill="both", expand=True)
 scrollbar.pack(side="right", fill="y")
+canvas.bind_all("<MouseWheel>", on_mouse_wheel)
 
 results_container = scrollable_frame
 
