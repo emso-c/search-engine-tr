@@ -1,10 +1,7 @@
-import json
 from urllib.parse import urlparse
 
 from src.database.adapter import load_db_adapter
-from src.models import Config
 from src.services import BacklinkService, IPService
-from src.utils import config
 
 adapter = load_db_adapter()
 backlink_service = BacklinkService(adapter)
@@ -28,12 +25,6 @@ def _is_same_subbdomain(url1: str, url2: str) -> bool:
     
     return domain1[-2:] == domain2[-2:]
     
-
-
-# TODO handle this case https://mikrotik.com/buy -> https://help.mikrotik.com
-# print(_is_same_domain("https://mikrotik.com/buy", "https://mikrotik.social"))
-# print(_is_same_subbdomain("https://mikrotik.com/buy", "https://mikrotik.social"))
-# exit()
 
 print("Initial backlink count:", backlink_service.count())
 
