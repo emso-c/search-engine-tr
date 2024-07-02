@@ -3,6 +3,8 @@ import locale
 import pickle
 import threading
 import tkinter as tk
+from tkinterweb import HtmlFrame
+import pyperclip
 
 from src.models import Config, PageScore, SearchResultTable
 from src.modules.crawler import Crawler
@@ -60,7 +62,7 @@ def display_results(ranks: list[PageScore], doc_count: int, final_time):
             url = url[:MAX_LINK_LEN] + "..."
         result_url = tk.Label(result_frame, text=url, fg="blue", cursor="hand2")
         result_url.pack(anchor="w")
-        result_url.bind("<Button-1>", lambda e, url=rank.document.url: open_url(url))
+        result_url.bind("<Button-1>", lambda e,title=rank.document.url,url=rank.document.url: open_url(url, title))
 
         description = rank.document.description
         # description = str(rank.idf_score)
@@ -69,9 +71,21 @@ def display_results(ranks: list[PageScore], doc_count: int, final_time):
             result_description = tk.Label(result_frame, text=description, font=("Helvetica", 12), anchor="w", justify="left")
             result_description.pack(anchor="w", fill="both")
 
-def open_url(url):
-    import webbrowser
-    webbrowser.open(url)
+def open_url(url, title=None):
+    pyperclip.copy(url)
+    new_tab = tk.Toplevel(root)
+    new_tab.title(title or url)
+    new_tab.geometry("800x600")
+    
+    frame = HtmlFrame(master=new_tab, horizontal_scrollbar="auto")
+    frame.pack(fill="both", expand=True)
+    
+    try:
+        frame.load_url(url)
+    except Exception as e:
+        print(f"Failed to load URL: {e}")
+        frame.set_content(f"<html><body><h1>Failed to load URL: {e}</h1></body></html>")
+
 
 def search(lucky: bool = False):
     clear_results()
@@ -102,14 +116,13 @@ def search(lucky: bool = False):
     final_time = end - start
     final_time = final_time if final_time >= 0 else 0
 
-
     if not ranks:
         results_label.config(text="Sonuç bulunamadı.\n\n")
         return
 
     try:
         if lucky:
-            open_url(ranks[0].document.url)
+            open_url(ranks[0].document.url, ranks[0].document.title)
         display_results(ranks, doc_count, final_time)
     except Exception as e:
         print("ERROR:", e.__class__.__name__, e)
