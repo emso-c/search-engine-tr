@@ -9,15 +9,12 @@ from src.modules.document_score_calculator import DocumentScoreCalculator
 from src.modules.normalizer import Normalizer
 from src.services import IPService, PageService
 from src.services.DocumentIndexService import DocumentIndexService
-from src.utils import tag_weights
+from src.utils import tag_weights, config
 
 def _get_base_url(url: str) -> str:
     parsed_uri = urlparse(url)
     result = '{uri.scheme}://{uri.netloc}'.format(uri=parsed_uri).strip()
     return result
-
-with open("config.json") as f:
-    config = Config(**json.load(f))
 
 crawler = Crawler(config.crawler)
 adapter = load_db_adapter()

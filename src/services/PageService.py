@@ -1,7 +1,6 @@
 from typing import List, Optional
 from datetime import datetime
-
-from sqlalchemy import func, select, text, union_all
+from sqlalchemy import func, select, union_all
 
 from src.models import PageTableBase
 from src.services import PartitionedService

@@ -1,19 +1,17 @@
-import json
 import socket
 import sys
 import os
 import threading
 
-
 from src.exceptions import InvalidResponse
-from src.models import Config, URLFrontierTable
+from src.models import URLFrontierTable
 from src.services import URLFrontierService
+from src.utils import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 import aiohttp
 from src.modules.response_converter import ResponseConverter
-from src.utils import ping
 from lxml.etree import ParserError
 from src.database.adapter import load_db_adapter
 from src.services.IPService import IPService
@@ -21,9 +19,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from src.modules.response_validator import ResponseValidator
 from urllib.parse import urlparse
-
-def _resolve_domain(domain):
-    return urlparse(domain).hostname
 
 def get_base_url(url):
     """example https://www.google.com/products/1 -> https://www.google.com"""
@@ -36,7 +31,7 @@ async def url_frontier_scan_task(url_obj: URLFrontierTable, semaphore):
             base_url = get_base_url(url_obj.url)
             ip = None
             try:
-                _host = _resolve_domain(url_obj.url)
+                _host = urlparse(url_obj.url).hostname
                 ip = socket.gethostbyname(_host)
             except socket.gaierror:
                 print(f"❌ - {url_obj.url} - [DNS RESOLUTION FAILED]")
@@ -52,11 +47,6 @@ async def url_frontier_scan_task(url_obj: URLFrontierTable, semaphore):
                 fails = validator.validate(response)
                 if fails:
                     raise InvalidResponse("Response failed validation")
-
-                if response.url != base_url:
-                    with open("redirects.txt", "a") as f:
-                        f.write(f"{base_url} -> {response.url}\n")
-                    # TODO handle redirects
 
                 obj = ip_service.generate_obj(
                     "domain",
@@ -92,12 +82,6 @@ async def url_frontier_scan_task(url_obj: URLFrontierTable, semaphore):
         except (Exception) as e:
             print("CRITICAL ERROR:", e.__class__.__name__, e)
             url_frontier_service.db_adapter.get_session().rollback()
-        finally:
-            pass
-            # print("Committing changes...")
-            # ip_service.commit(verbose=False)
-            # url_frontier_service.commit(verbose=False)
-
 
 async def url_frontier_task_generator(semaphore, limit=500):
     tasks = []
@@ -109,18 +93,13 @@ async def url_frontier_task_generator(semaphore, limit=500):
         tasks.append(url_frontier_scan_task(url_obj, semaphore))
     await asyncio.gather(*tasks)
 
-with open("config.json") as f:
-        config = Config(**json.load(f))
 
 validator = ResponseValidator()
 db_adapter = load_db_adapter()
-
 ip_service = IPService(db_adapter)
 url_frontier_service = URLFrontierService(db_adapter)
 
-
 print("Initial URL Frontier size:", url_frontier_service.count())
-
 
 stop_event = threading.Event()
 

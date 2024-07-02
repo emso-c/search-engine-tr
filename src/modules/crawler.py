@@ -21,8 +21,6 @@ from src.models import (
     MetaTags,
 )
 
-invalid_file_extensions = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".csv", ".zip", ".rar", ".tar", ".gz", ".7z", ".mp3", ".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".wav", ".ogg", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".bmp", ".webp"]
-
 class Crawler:
     def __init__(self, config: CrawlerConfig):
         self.config = config
@@ -46,7 +44,7 @@ class Crawler:
         base_url = self._get_base_url(page_url)
         
         # Check invalid file extensions
-        if any([link.endswith(ext) for ext in invalid_file_extensions]):
+        if any([link.endswith(ext) for ext in self.config.invalid_file_extensions]):
             return LinkType.INVALID
 
         # Check if the link is in the same domain

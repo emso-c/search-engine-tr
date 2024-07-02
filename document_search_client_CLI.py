@@ -1,13 +1,12 @@
-import json
 import pickle
 import threading
 
-from src.models import Config, SearchResultTable
+from src.models import SearchResultTable
 from src.modules.crawler import Crawler
 from src.modules.pagerank import PageRank, adapter
 from timeit import default_timer as timer
 from src.services.SearchResultService import SearchResultService
-
+from src.utils import config
 
 def update_search_results(raw_query, ranks, doc_count, cache_hit):
     if cache_hit:
@@ -22,10 +21,6 @@ def update_search_results(raw_query, ranks, doc_count, cache_hit):
     )
 
 
-
-with open("config.json") as f:
-    config = Config(**json.load(f))
-# adapter = load_db_adapter()
 search_result_service = SearchResultService(adapter)
 crawler = Crawler(config.crawler)
 pr = PageRank()

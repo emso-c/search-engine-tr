@@ -16,12 +16,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 import aiohttp
-from src.utils import get_reserved_ips, ping
+from src.utils import get_reserved_ips
 from src.modules.response_converter import ResponseConverter
 from lxml.etree import ParserError
 from src.database.adapter import load_db_adapter
 from src.services.IPService import IPService
 from sqlalchemy.exc import SQLAlchemyError
+from src.utils import config
 
 from src.modules.response_validator import ResponseValidator
 
@@ -29,28 +30,11 @@ from src.modules.response_validator import ResponseValidator
 async def ip_scan_task(ip, ports, semaphore):
     async with semaphore, aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=config.crawler.req_timeout)) as session:        
         try:
-            # if ping(ip) is False:
-            #     print(f"❌ - {ip} - [PING FAILED]")
-            #     raise InvalidResponse("Ping failed")
-
             for port in ports:
                 is_https = port == 443
                 ip_template = "http{}://{}:{}"
                 full_url = ip_template.format("s" if is_https else "", ip, port)
-                
-                # robotstxt = crawler.get_robots_txt(full_url)
-                # if robotstxt and not crawler.can_fetch(robotstxt, full_url):
-                #     print(f"❌ - 🤖 {full_url} - Disallowed by robots.txt")
-                #     raise InvalidResponse("Disallowed by robots.txt")
 
-                # check if ip is already in the database
-                # TEMPORARILY DISABLED
-                # if ip_service.get_ip(ip):
-                #     should_be_rechecked = True  # TODO implement recheck function, ex: if last_checked < 1 week ago
-                #     if not should_be_rechecked: 
-                #         print(f"Skipping {full_url} - already scanned")
-                #         continue
-                
                 headers = {
                     "User-Agent": config.crawler.user_agent,
                 }
@@ -103,7 +87,6 @@ async def ip_scan_task(ip, ports, semaphore):
         except Exception as e:
             print("CRITICAL ERROR:", e.__class__.__name__, e)
 
-
 async def ip_range_scan_task(semaphore, ip_ranges = ((0, 16), (0, 16), (0, 16), (0, 16)), ports = (80, 443)):
     tasks = []
     for a in tqdm(range(ip_ranges[0][0], ip_ranges[0][1]), desc=f"Queueing IPs for chunk {ip_ranges}"):
@@ -113,7 +96,6 @@ async def ip_range_scan_task(semaphore, ip_ranges = ((0, 16), (0, 16), (0, 16), 
                     ip = f"{a}.{b}.{c}.{d}"
                     tasks.append(ip_scan_task(ip, ports=ports, semaphore=semaphore))
     await asyncio.gather(*tasks)
-
 
 def generate_ip_chunks(config:Config) -> list[tuple[tuple[int, int], tuple[int, int], tuple[int, int], tuple[int, int]]]:
     csize = config.crawler.chunk_size
@@ -151,33 +133,6 @@ def generate_ip_chunks(config:Config) -> list[tuple[tuple[int, int], tuple[int, 
     
     return responsible_chunks
 
-with open("config.json") as f:
-    config = Config(**json.load(f))
-
-validator = ResponseValidator()
-crawler = Crawler(config.crawler)
-db_adapter = load_db_adapter()
-
-ip_service = IPService(db_adapter)
-
-obj = ip_service.generate_obj(
-    "domain",
-    domain="test",
-    ip="1.1.1.1",
-    port=80,
-    status=200,
-)
-
-print("Initial ips:", len(ip_service.get_all()))
-
-print("Generating IP chunks...")
-chunks = generate_ip_chunks(config)
-
-if config.crawler.shuffle_chunks:
-    random.shuffle(chunks)
-
-stop_event = threading.Event()
-
 def process_chunks(chunks):
     for chunk in chunks:
         try:
@@ -199,6 +154,21 @@ def process_chunks(chunks):
             print("Total valid IPs:", len(ip_service.get_valid_ips()))
             time.sleep(1)
 
+
+validator = ResponseValidator()
+crawler = Crawler(config.crawler)
+db_adapter = load_db_adapter()
+ip_service = IPService(db_adapter)
+print("Initial ips:", len(ip_service.get_all()))
+
+print("Generating IP chunks...")
+chunks = generate_ip_chunks(config)
+
+if config.crawler.shuffle_chunks:
+    random.shuffle(chunks)
+
+stop_event = threading.Event()
+
 parallelism = config.crawler.parallelism
 threads = []
 thread_chunk_size = len(chunks) // parallelism
@@ -207,13 +177,15 @@ def run():
     print("Starting IP scan...")
     try:
         for i in range(parallelism):
-            t = threading.Thread(target=process_chunks, args=(chunks[i*thread_chunk_size:(i+1)*thread_chunk_size],))
-            t.daemon = True
+            t = threading.Thread(
+                target=process_chunks,
+                args=(chunks[i*thread_chunk_size:(i+1)*thread_chunk_size],),
+                daemon=True
+            )
             print(f"Starting thread {t.name} ({i+1}/{parallelism})")
             t.start()
             threads.append(t)
 
-        # Wait for interruption
         while not stop_event.is_set():
             time.sleep(1)
 
@@ -222,7 +194,7 @@ def run():
         stop_event.set()
 
     for t in threads:
-        t.join()  # Wait for all threads to finish
+        t.join()  # wait for all threads to finish
 
 if __name__ == "__main__":
     run()

@@ -1,5 +1,4 @@
 from typing import List, Optional
-from datetime import datetime
 from src.models import SearchResultTable
 from src.services import BaseService
 
@@ -42,10 +41,8 @@ class SearchResultService(BaseService):
         else:
             session.add(obj)
             result = obj
-        
         if commit:
             session.commit()
-        
         return result
 
     

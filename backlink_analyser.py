@@ -4,10 +4,7 @@ from urllib.parse import urlparse
 from src.database.adapter import load_db_adapter
 from src.models import Config
 from src.services import BacklinkService, IPService
-
-
-with open("config.json") as f:
-    config = Config(**json.load(f))
+from src.utils import config
 
 adapter = load_db_adapter()
 backlink_service = BacklinkService(adapter)

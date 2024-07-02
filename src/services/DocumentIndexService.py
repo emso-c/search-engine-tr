@@ -1,6 +1,3 @@
-from typing import List, Optional
-from datetime import datetime
-
 from sqlalchemy import union_all
 from src.models import DocumentIndexTableBase
 from src.services import PartitionedService 
@@ -33,11 +30,11 @@ class DocumentIndexService(PartitionedService):
                 session.commit()
         return obj
     
-    def get_document_indices(self) -> List[DocumentIndexTableBase]:
+    def get_document_indices(self) -> list[DocumentIndexTableBase]:
         """Get all document indices from the database."""
         return self.get_all()
     
-    def get_document_indices_by_word(self, word: str, starting_with=False) -> List[DocumentIndexTableBase]:
+    def get_document_indices_by_word(self, word: str, starting_with=False) -> list[DocumentIndexTableBase]:
         """Get all document indices by word from the database."""
         session = self.db_adapter.get_session()
         table = self.base_type.get_partition_tablename(word)
@@ -46,7 +43,7 @@ class DocumentIndexService(PartitionedService):
             return session.query(DynamicModel).filter(DynamicModel.word.startswith(word)).all()
         return session.query(DynamicModel).filter_by(word=word).all()
     
-    def get_document_indices_by_multiple_words(self, words: List[str]) -> List[DocumentIndexTableBase]:
+    def get_document_indices_by_multiple_words(self, words: list[str]) -> list[DocumentIndexTableBase]:
         queries = []
         for key in self.base_type.partition_keys + ["default"]:
             table_name = f"{self.base_type.__basename__}_{key}"
@@ -68,7 +65,6 @@ class DocumentIndexService(PartitionedService):
         updated_obj = session.query(DynamicModel).filter_by(document_url=new_obj.document_url, word=new_obj.word).first()
         for attr in [attr for attr in dir(new_obj) if not attr.startswith("_")  and attr not in ["created_at", "updated_at"]]:
             setattr(updated_obj, attr, getattr(new_obj, attr))
-        # setattr(updated_obj, "updated_at", datetime.now())
         return updated_obj
     
     def delete_document_index(self, document_url: str, word: str) -> DocumentIndexTableBase:
@@ -80,22 +76,8 @@ class DocumentIndexService(PartitionedService):
         session.delete(document_index_obj)
         return document_index_obj
     
-    # def delete_document_indices_by_document_url(self, document_url: str) -> List[DocumentIndexTable]:
-    #     """Delete all document indices by document_url from the database."""
-    #     session = self.db_adapter.get_session()
-    #     document_index_objs = session.query(DocumentIndexTable).filter_by(document_url=document_url).all()
-    #     for document_index_obj in document_index_objs:
-    #         session.delete(document_index_obj)
-    #     return document_index_objs
-    
     def delete_all_document_indices(self, commit) -> bool:
         """Delete all document indices from the database."""
-        # session = self.db_adapter.get_session()
-        # session.query(DocumentIndexTableBase).delete()
-        # if commit:
-        #     session.commit()
-        # return True
-    
         queries = []
         for key in self.base_type.partition_keys + ["default"]:
             table_name = f"{self.base_type.__basename__}_{key}"
@@ -105,7 +87,7 @@ class DocumentIndexService(PartitionedService):
         
         return True
 
-    def get_document_indices_by_document_url(self, document_url: int) -> List[DocumentIndexTableBase]:
+    def get_document_indices_by_document_url(self, document_url: int) -> list[DocumentIndexTableBase]:
         """Get all document indices by document_url from the database."""
     
         queries = []

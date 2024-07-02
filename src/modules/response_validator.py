@@ -1,18 +1,12 @@
-from http import HTTPStatus
-from typing import List, Tuple, Union
+from typing import Union
 from lxml import html
 
 from src.models import FailEnum
 from src.models import UniformResponse
-
-accepted_status_codes = [
-    HTTPStatus.OK,
-]
+from src.utils import config
 
 class ResponseValidator:
-    # depends on FailEnum, lxml, UniformResponse
-
-    def __init__(self, exclude: Tuple[callable] = None):
+    def __init__(self, exclude: tuple[callable] = None):
         self.exclude = exclude or tuple()
     
     def _check_content_exists(
@@ -25,10 +19,9 @@ class ResponseValidator:
     def _check_status_code(
         self, response: UniformResponse
     ) -> Union[None, FailEnum]:
-        if response.status_code not in accepted_status_codes:
+        if response.status_code not in config.crawler.accepted_status_codes:
             return FailEnum.INVALID_STATUS_CODE
         return None
-
 
     def _check_content_language(
         self, response: UniformResponse
@@ -37,12 +30,7 @@ class ResponseValidator:
         if response.headers.get("Content-Language") in ["tr", "tr-TR", "tr_TR"]:
             return None
 
-        content = response.body
-        
-        if not content:
-            return FailEnum.NO_CONTENT
-
-        tree = html.fromstring(content)
+        tree = html.fromstring(response.body)
 
         # check http-equiv meta tag
         if tree.xpath('//meta[@http-equiv="Content-Language" and @content="tr"]'):
@@ -61,25 +49,20 @@ class ResponseValidator:
     def _check_content_type(
         self, response: UniformResponse
     ) -> Union[None, FailEnum]:
-        # if response.headers.get("Content-Type", '').lower() in [
-        #     "text/html",
-        #     "text/html; charset=utf-8",
-        #     "text/html; charset=iso-8859-9"
-        # ]:
         if 'text/html' in response.headers.get("Content-Type", ''):
             return None
         return FailEnum.INVALID_CONTENT_TYPE
 
     def validate(
         self, response: UniformResponse
-    ) -> Union[None, List[FailEnum]]:
+    ) -> Union[None, list[FailEnum]]:
         fails = []
         for func in dir(self):
             if func.startswith("__") or func == "validate":
                 continue
 
             check_func = getattr(self, func)
-            if callable(check_func):  # and check_func not in self.exclude:
+            if callable(check_func):
                 fail = check_func(response)
                 if fail is not None:
                     fails.append(fail)

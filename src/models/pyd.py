@@ -23,16 +23,10 @@ class PageScore(BaseModel):
 
 class FailEnum(Enum):
     INVALID_STATUS_CODE = 0  # 404, 500, etc.
-    NOT_AVAILABLE = 1  # DNS resolution, connection timeout, etc.
+    NOT_AVAILABLE = 1  # DNS resolution failure, connection timeout, etc.
     NOT_TURKISH = 2  # Content-Language, meta tags, etc.
     NO_CONTENT = 3  # empty response body
     INVALID_CONTENT_TYPE = 4  # not text/html
-
-
-class FailReasonWeight(BaseModel):
-    INVALID_STATUS_CODE: float
-    NOT_AVAILABLE: float
-    NOT_TURKISH: float
 
 class MaxWorkerConfig(BaseModel):
     ip_search: int
@@ -47,10 +41,11 @@ class CrawlerConfig(BaseModel):
     user_agent: str
     allowed_protocols: list[str]
     retry_after_minutes: int
-    fail_reason_weights: FailReasonWeight
     max_document_length: int
     ports: List[int]
     shuffle_chunks: bool
+    invalid_file_extensions: list[str]
+    accepted_status_codes: list[int]
 
 class SystemConfig(BaseModel):
     machine_id: int

@@ -1,4 +1,3 @@
-import json
 import locale
 import pickle
 import threading
@@ -6,11 +5,12 @@ import tkinter as tk
 from tkinterweb import HtmlFrame
 import pyperclip
 
-from src.models import Config, PageScore, SearchResultTable
+from src.models import PageScore, SearchResultTable
 from src.modules.crawler import Crawler
 from src.modules.pagerank import PageRank, adapter
 from timeit import default_timer as timer
 from src.services.SearchResultService import SearchResultService
+from src.utils import config
 
 locale.setlocale(locale.LC_ALL, 'tr_TR.UTF-8')
 
@@ -65,7 +65,6 @@ def display_results(ranks: list[PageScore], doc_count: int, final_time):
         result_url.bind("<Button-1>", lambda e,title=rank.document.url,url=rank.document.url: open_url(url, title))
 
         description = rank.document.description
-        # description = str(rank.idf_score)
         if description:
             description = add_line_breaks(description[:MAX_DESC_LEN], MAX_DESC_LINE_LEN)
             result_description = tk.Label(result_frame, text=description, font=("Helvetica", 12), anchor="w", justify="left")
@@ -133,9 +132,6 @@ def search(lucky: bool = False):
         args=(raw_query_processed, ranks, doc_count, cache_hit)
     ).start()
 
-# Load configuration
-with open("config.json") as f:
-    config = Config(**json.load(f))
 
 # Load services
 search_result_service = SearchResultService(adapter)

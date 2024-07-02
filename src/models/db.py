@@ -17,8 +17,6 @@ class URLFrontierTable(Base, RepresentableTable):
     __tablename__ = "url_frontier"
 
     url = Column(String(255), primary_key=True)
-    # created_at = Column(DateTime, default=datetime.now)
-
 
 class IPTableBase(object):
     __basename__ = "ip_table"

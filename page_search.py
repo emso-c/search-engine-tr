@@ -1,5 +1,4 @@
 from datetime import datetime
-import json
 import random
 import sys
 import os
@@ -7,13 +6,13 @@ import threading
 
 
 from src.exceptions import InvalidResponse
-from src.models import BacklinkTable, Config, IPTableBase, PageTableBase
+from src.models import BacklinkTable, IPTableBase, PageTableBase
 from src.services import BacklinkService, PageService, URLFrontierService
+from src.utils import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import asyncio
 import aiohttp
-from src.utils import ping
 from src.modules.response_converter import ResponseConverter
 from lxml.etree import ParserError
 from src.database.adapter import load_db_adapter
@@ -153,25 +152,32 @@ async def generate_page_scan_tasks(semaphore, limit=10):
     if driver == "pysqlite":
         random.shuffle(ips)
         random.shuffle(pages)
-        # ips = _ip_query.order_by(func.random())
-        # pages = _page_query.order_by(func.random())
     elif driver == "pymssql":
         random.shuffle(ips)
         random.shuffle(pages)
-        # ips = _ip_query.order_by(func.newid())
-        # pages = _page_query.order_by(func.newid())
     else:
         raise NotImplementedError(f"Driver {driver} not supported")
 
     if not len(ips) and not len(pages):
         print("No pages or IPs to scan.")
         return
+
+    # distribute limit proportionally
     ip_limit = int(limit * calculate_ratio(len(ips), len(pages)))
     page_limit = limit - ip_limit
-    # ips = ips.limit(ip_limit)
+    
+    # prevent total dominance
+    if ip_limit == 0 and len(ips) > 0:
+        ip_limit = 1
+        page_limit -= 1
+    if page_limit == 0 and len(pages) > 0:
+        page_limit = 1
+        ip_limit -= 1
+
     ips = ips[:ip_limit]
     pages = pages[:page_limit]
-    print(f"Generating task with {len(ips)} ({ip_limit}) IPs and {len(pages)} ({page_limit}) pages.")
+
+    print(f"Generating task with {ip_limit} IPs and {page_limit} pages.")
     tasks = []
     if ip_limit:
         for ip_obj in ips:
@@ -184,10 +190,6 @@ async def generate_page_scan_tasks(semaphore, limit=10):
             print("Generating task:", task_name)
             tasks.append(page_scan_task(page_obj, semaphore))
     await asyncio.gather(*tasks)
-
-
-with open("config.json") as f:
-    config = Config(**json.load(f))
 
 validator = ResponseValidator()
 crawler = Crawler(config.crawler)

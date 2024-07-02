@@ -3,6 +3,12 @@ import platform
 import subprocess
 import ipaddress
 import pickle
+import json
+
+from src.models.pyd import Config
+
+with open("config.json") as f:
+    config = Config(**json.load(f))
 
 tag_weights = {
     'title': 2.0,
@@ -13,7 +19,6 @@ tag_weights = {
     'a': 0.8,
     'span': 0.5,
 }
-
 
 def ping(host):
     """
@@ -32,7 +37,7 @@ def ping(host):
 def get_reserved_ips() -> set[ipaddress.IPv4Address]:
     _reserved_blocks = [
         (ipaddress.IPv4Network('0.0.0.0/8'),),
-        (ipaddress.IPv4Network('10.0.0.0/8'),),
+        # (ipaddress.IPv4Network('10.0.0.0/8'),),
         # (ipaddress.IPv4Network('100.64.0.0/10'),),
         # (ipaddress.IPv4Network('127.0.0.0/8'),),
         # (ipaddress.IPv4Network('169.254.0.0/16'),),

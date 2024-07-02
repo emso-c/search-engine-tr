@@ -61,8 +61,6 @@ class DocumentScoreCalculator:
                         break
 
                 score = f * math.log10(total_documents / dfx)
-                # score = f * (total_documents / dfx)
-                # print(f"f*ln(N/dfx) = {f}*log({total_documents}/{dfx}) = {score}")
                 idf_score += score
             inverse_document_frequencies.append((document, idf_score))
         return inverse_document_frequencies

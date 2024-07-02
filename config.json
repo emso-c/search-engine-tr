@@ -18,13 +18,12 @@
             "http",
             "https"
         ],
+        "accepted_status_codes": [
+            200
+        ],
         "max_document_length": 5000,
-        "fail_reason_weights": {
-            "INVALID_STATUS_CODE": 0.7,
-            "NOT_AVAILABLE": 1,
-            "NOT_TURKISH": 2
-        },
         "user_agent": "KTUBot/1.0",
-        "retry_after_minutes": 10
+        "retry_after_minutes": 10,
+        "invalid_file_extensions": [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".csv", ".zip", ".rar", ".tar", ".gz", ".7z", ".mp3", ".mp4", ".avi", ".mkv", ".mov", ".flv", ".wmv", ".wav", ".ogg", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".bmp", ".webp"]
     }
 }
