@@ -46,7 +46,6 @@ for backlink in backlink_service.get_backlinks():
 
     base_source = _get_base_url(backlink.source_url)
     base_target = _get_base_url(backlink.target_url)
-    # print(base_source, base_target)
     
     ip_target_obj = ip_service.get_ip_by_domain(base_target)
     if not ip_target_obj:
