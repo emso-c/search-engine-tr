@@ -24,7 +24,7 @@
             "NOT_AVAILABLE": 1,
             "NOT_TURKISH": 2
         },
-        "user_agent": "KTUBot/1.0 (+http://www.ktu.edu.tr)",
+        "user_agent": "KTUBot/1.0",
         "retry_after_minutes": 10
     }
 }
