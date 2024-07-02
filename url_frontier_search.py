@@ -99,7 +99,7 @@ async def url_frontier_scan_task(url_obj: URLFrontierTable, semaphore):
             # url_frontier_service.commit(verbose=False)
 
 
-async def url_frontier_task_generator(semaphore, limit=200):
+async def url_frontier_task_generator(semaphore, limit=500):
     tasks = []
     urls = url_frontier_service.db_adapter.get_session() \
             .query(URLFrontierTable) \

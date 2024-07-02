@@ -30,7 +30,6 @@ def ping(host):
 
 
 def get_reserved_ips() -> set[ipaddress.IPv4Address]:
-    return set()
     _reserved_blocks = [
         (ipaddress.IPv4Network('0.0.0.0/8'),),
         (ipaddress.IPv4Network('10.0.0.0/8'),),
@@ -59,11 +58,12 @@ def get_reserved_ips() -> set[ipaddress.IPv4Address]:
             return reserved_ips
     except FileNotFoundError:
         print("No reserved IP file found, generating reserved IPs...")
-        for block in _reserved_blocks:
-            print("Processing block:", block)
-            if len(block) != 1 or not isinstance(block[0], ipaddress.IPv4Network):
-                continue
-            reserved_ips.update(set(block[0]))
-        with open("data/reserved_ips.pkl", "wb") as f:
-            pickle.dump(reserved_ips, f)
-        return reserved_ips
+    
+    for block in _reserved_blocks:
+        print("Processing block:", block)
+        if len(block) != 1 or not isinstance(block[0], ipaddress.IPv4Network):
+            continue
+        reserved_ips.update(set(block[0]))
+    with open("data/reserved_ips.pkl", "wb") as f:
+        pickle.dump(reserved_ips, f)
+    return reserved_ips

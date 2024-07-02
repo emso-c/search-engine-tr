@@ -96,8 +96,7 @@ async def ip_scan_task(ip, ports, semaphore):
         except ParserError as e:
             pass
         except ValueError as e:
-            # ValueError Unicode strings with encoding declaration are not supported. Please use bytes input or XML fragments without declaration.
-            # Might need to handle this later
+            # Might need to handle this later: ValueError Unicode strings with encoding declaration are not supported. Please use bytes input or XML fragments without declaration.
             pass
         except KeyboardInterrupt:
             raise KeyboardInterrupt

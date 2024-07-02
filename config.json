@@ -5,9 +5,9 @@
     },
     "crawler": {
         "max_workers": {
-            "ip_search": 1024,
-            "url_frontier": 1024,
-            "page_search": 1
+            "ip_search": 512,
+            "url_frontier": 128,
+            "page_search": 128
         },
         "chunk_size": 8,
         "shuffle_chunks": true,

@@ -12,7 +12,7 @@ from src.services.SearchResultService import SearchResultService
 
 locale.setlocale(locale.LC_ALL, 'tr_TR.UTF-8')
 
-MAX_TITLE_LEN = 77
+MAX_TITLE_LEN = 71
 MAX_LINK_LEN = 105
 MAX_DESC_LINE_LEN = 100
 MAX_DESC_LEN = MAX_DESC_LINE_LEN * 3
@@ -48,7 +48,6 @@ def display_results(ranks: list[PageScore], doc_count: int, final_time):
         bd = 3 if i == 0 else 1
         result_frame = tk.Frame(results_container, bd=bd, relief="solid", padx=10, pady=5)
         result_frame.pack(fill="x", pady=5)
-        # result_frame.bind("<Button-1>", lambda e, url=rank.document.url: open_url(url))
 
         title = rank.document.title or rank.document.url
         if title and len(title) > MAX_TITLE_LEN:

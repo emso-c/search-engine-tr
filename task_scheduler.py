@@ -5,16 +5,16 @@ import time
 command_map = [
     {
         "command": "python indexer.py",
-        "schedule": schedule.every(7).minutes
+        "schedule": schedule.every(30).minutes
     },
     {
         "command": "python backlink_analyser.py",
-        "schedule": schedule.every(10).minutes
+        "schedule": schedule.every(20).minutes
     }
 ]
 
 for command in command_map:
-    os.system(command["command"])
+    # os.system(command["command"])
     command["schedule"].do(lambda: os.system(command["command"]))
     print(f"Added {command['command']} to scheduler")
     
